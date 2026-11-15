@@ -22,7 +22,7 @@
       table: "Tabela", chart: "Graf", sourceTab: "Vir in navedba", notes: "Opombe",
       csv: "CSV", xlsx: "Excel", copyTable: "Kopiraj tabelo", svg: "SVG", png: "PNG", save: "Shrani v knjižnico", share: "Povezava do izbora", fileName: "Ime datoteke",
       copied: "Kopirano.", saved: "Shranjeno v Mojo knjižnico.", linkCopied: "Povezava kopirana.",
-      obs: "{0} opazovanj", period: "obdobje", pulledAt: "pridobljeno", prov: "Začasni podatki", forecast: "Napovedi", provNote: "Začasni podatki za {0}. Pri primerjavi z drugimi obdobji to navedite.", fcNote: "Obdobja {0} so napovedi, ne izmerjeni podatki.",
+      obs: "{0} opazovanj", partNote: "Delno leto in začasni podatki: {0}. Delnega leta ne primerjajte s celimi leti; po potrebi primerjajte enaka obdobja (npr. jan.–sep.).", period: "obdobje", pulledAt: "pridobljeno", prov: "Začasni podatki", forecast: "Napovedi", provNote: "Začasni podatki za {0}. Pri primerjavi z drugimi obdobji to navedite.", fcNote: "Obdobja {0} so napovedi, ne izmerjeni podatki.",
       fixed: "Izbor:", chartTitle: "Naslov", chartSub: "Podnaslov", modeIsr: "ISR", modeColor: "Barvno",
       citeFdv: "Navedba v Virih (FDV)", citeText: "V besedilu", citeFig: "Pod sliko ali tabelo", citeApa: "Angleško (APA 7)", citeShort: "Kratko, za zapiske",
       updAt: "Posodobljeno pri viru", pulled: "Pridobljeno", flags: "Zastavice", apiQuery: "Poizvedba (API)", forClaude: "Za Clauda",
@@ -53,7 +53,7 @@
       table: "Table", chart: "Chart", sourceTab: "Source and citation", notes: "Notes",
       csv: "CSV", xlsx: "Excel", copyTable: "Copy table", svg: "SVG", png: "PNG", save: "Save to library", share: "Link to selection", fileName: "File name",
       copied: "Copied.", saved: "Saved to My library.", linkCopied: "Link copied.",
-      obs: "{0} observations", period: "period", pulledAt: "pulled", prov: "Provisional", forecast: "Projections", provNote: "Provisional data for {0}. Say so when comparing periods.", fcNote: "Periods {0} are projections, not measured data.",
+      obs: "{0} observations", partNote: "Part-year, provisional data: {0}. Do not compare a part-year with full years; compare like periods (e.g. Jan–Sep) instead.", period: "period", pulledAt: "pulled", prov: "Provisional", forecast: "Projections", provNote: "Provisional data for {0}. Say so when comparing periods.", fcNote: "Periods {0} are projections, not measured data.",
       fixed: "Selection:", chartTitle: "Title", chartSub: "Subtitle", modeIsr: "ISR", modeColor: "Colour",
       citeFdv: "Reference list (FDV, Slovene)", citeText: "In text", citeFig: "Under figure or table", citeApa: "English (APA 7)", citeShort: "Short, for notes",
       updAt: "Updated at source", pulled: "Pulled", flags: "Flags", apiQuery: "Query (API)", forClaude: "For Claude",
@@ -271,10 +271,9 @@
     st.source = key; st.table = id; st.dataLang = lang; st.res = null; st.filter = {}; st.tab = "table"; st.title = title;
     main.innerHTML = `<div class="crumbs"><a href="?" data-nav>${esc(t("home"))}</a> › <a href="?v=source&s=${key}" data-nav>${esc(nm(s.name))}</a></div><h1>${esc(title || id)}</h1>${spin(t("loadingMeta"))}`;
     let m;
-    try { m = await S.meta(key, id, lang); }
+    try { m = await S.meta(key, id, lang, title && s.type === "pxweb" ? { title } : undefined); }
     catch (e) { main.insertAdjacentHTML("beforeend", errBox(e)); return; }
     st.meta = m;
-    if (title && (s.type === "pxweb")) m.title = title;
     st.sel = sel || defaultSel(m, s);
     renderTable();
     if (run) pull();
@@ -523,7 +522,8 @@
     h += `<div class="toolbar"><button class="btn ghost sm" data-x="csv">${esc(t("csv"))}</button><button class="btn ghost sm" data-x="xlsx">${esc(t("xlsx"))}</button><button class="btn ghost sm" data-x="copy">${esc(t("copyTable"))}</button>${st.tab === "chart" ? `<span class="sep"></span><button class="btn ghost sm" data-x="svg">${esc(t("svg"))}</button><button class="btn ghost sm" data-x="png">${esc(t("png"))}</button>` : ""}<span class="sep"></span><button class="btn ghost sm" data-x="save">${esc(t("save"))}</button><button class="btn ghost sm" data-x="share">${esc(t("share"))}</button><span style="flex:1"></span><label class="small muted">${esc(t("fileName"))} <input id="stem" value="${esc(st.stem || S.fileStem(r))}" style="border:1px solid var(--line);padding:4px 6px;width:200px"></label></div>`;
     h += `<div id="saveForm"></div>`;
     h += `<div class="pane">`;
-    if (r.provisional.length) h += `<div class="note">${esc(t("provNote", r.provisional.join(", ")))}</div>`;
+    if (r.partial && r.partial.length) h += `<div class="note">${esc(t("partNote", r.partial.map(p => `${p} (${r.periodLabels[p]})`).join(", ")))}</div>`;
+    else if (r.provisional.length) h += `<div class="note">${esc(t("provNote", r.provisional.map(p => r.periodLabels && r.periodLabels[p] ? `${p} (${r.periodLabels[p]})` : p).join(", ")))}</div>`;
     if (r.forecast.length) h += `<div class="note">${esc(t("fcNote", r.forecast.length > 2 ? r.forecast[0] + "–" + r.forecast[r.forecast.length - 1] : r.forecast.join(", ")))}</div>`;
     h += filterBar(r);
     h += `<div id="paneBody"></div></div></div>`;
@@ -573,12 +573,15 @@
     const cap = 1500;
     let h = "";
     if (p.fixedTxt.length) h += `<div class="fixed">${esc(t("fixed"))} ${p.fixedTxt.map(([a, b]) => `${esc(a)}: <b>${esc(b)}</b>`).join(" · ")}</div>`;
-    h += `<div class="tablewrap"><table class="data"><thead><tr>${p.head.map(x => `<th>${esc(x)}</th>`).join("")}${p.kind === "time" ? p.times.map(tt => `<th class="num ${prov.has(tt) ? "prov" : ""} ${fc.has(tt) ? "fc" : ""}">${esc(tt)}</th>`).join("") : `<th class="num">${esc(LANG === "en" ? "Value" : "Vrednost")}</th>`}</tr></thead><tbody>`;
+    const pl = st.res.periodLabels || {};
+    h += `<div class="tablewrap"><table class="data"><thead><tr>${p.head.map(x => `<th>${esc(x)}</th>`).join("")}${p.kind === "time" ? p.times.map(tt => `<th class="num ${prov.has(tt) ? "prov" : ""} ${fc.has(tt) ? "fc" : ""}" ${pl[tt] ? `title="${esc(pl[tt])}"` : ""}>${esc(tt)}${pl[tt] ? "*" : ""}</th>`).join("") : `<th class="num">${esc(LANG === "en" ? "Value" : "Vrednost")}</th>`}</tr></thead><tbody>`;
     p.body.slice(0, cap).forEach(row => {
       h += `<tr>${row.labels.map(l => `<td>${esc(l)}</td>`).join("")}${p.single && !row.labels.length ? "" : ""}${row.vals.map((v, i) => { const tt = p.times[i]; const s = row.st[i]; return `<td class="num ${prov.has(tt) ? "prov" : ""} ${fc.has(tt) ? "fc" : ""}">${esc(fmt(v))}${s ? `<sup title="${esc(st.res.flags[s] || s)}">${esc(s)}</sup>` : ""}</td>`; }).join("")}</tr>`;
     });
     h += `</tbody></table></div>`;
     if (p.body.length > cap) h += `<p class="small muted">${esc(t("truncated", nf(cap), nf(p.body.length)))}</p>`;
+    const starred = p.kind === "time" ? p.times.filter(tt => pl[tt]) : [];
+    if (starred.length) h += `<p class="small muted">${starred.map(tt => `* ${esc(tt)}: ${esc(pl[tt])}`).join(" · ")}</p>`;
     const used = new Set(r.rows.map(x => x.status).filter(Boolean));
     if (used.size) h += `<ul class="flags">${Array.from(used).map(s => `<li><b>${esc(s)}</b> ${esc(st.res.flags[s] || "")}</li>`).join("")}</ul>`;
     return h;

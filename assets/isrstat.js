@@ -16,7 +16,7 @@
   "use strict";
 
   const VERSION = "0.1.0";
-  const CFG = { proxy: "", fetch: null, DOMParser: null, timeout: 90000, lang: "sl" };
+  const CFG = { proxy: "", fetch: null, DOMParser: null, timeout: 90000, lang: "sl", walkDelay: 150 };
 
   /* ------------------------------------------------------------------ */
   /* Sources                                                              */
@@ -290,7 +290,7 @@
       const aborted = e && e.name === "AbortError";
       throw new StatError(aborted
         ? `Strežnik ${host(url)} se ni odzval v ${Math.round((opts.timeout || CFG.timeout) / 1000)} s.`
-        : `Strežnik ${host(url)} se ne odziva ali zavrača klice iz brskalnika.`, { code: aborted ? "TIMEOUT" : "NETWORK", url, cause: e && e.message });
+        : `Strežnik ${host(url)} ni vrnil berljivega odgovora: poizvedba je morda napačna ali prevelika, strežnik pa ob napaki ne dovoli branja iz brskalnika. Preverite izbor ali poskusite znova.`, { code: aborted ? "TIMEOUT" : "NETWORK", url, cause: e && e.message });
     } finally { if (timer) clearTimeout(timer); }
     if (!r.ok) {
       let t = "";
@@ -389,6 +389,7 @@
 
   const PROV_RE = /(provisional|preliminar|za[čc]asn|ocena|ocenjen|estimat|privremen|prethodn|provizor|paraprak)/i;
   const FORECAST_RE = /(forecast|projection|napoved|projekcij)/i;
+  const PARTIAL_RE = /(M0?1\s*[-–]\s*M\d{1,2}|Q1\s*[-–]\s*Q[23]|kumulativ|cumulative|jan\.?\s*[-–]|januar\s*[-–])/i;
 
   function nodeText(el, name) {
     if (!el) return "";
@@ -491,7 +492,8 @@
     byTag(doc, "Concept").forEach(c => { concepts[c.getAttribute("id")] = localized(c, "Name", lang); });
     const dsd = byTag(doc, "DataStructure")[0];
     if (!dsd) throw new StatError("Struktura podatkov manjka v odgovoru.");
-    const dimEls = byTag(dsd, "Dimension");
+    const dl = byTag(dsd, "DimensionList")[0];
+    const dimEls = dl ? childEls(dl, "Dimension") : [];
     const dims = dimEls.map(d => {
       const id = d.getAttribute("id");
       const pos = Number(d.getAttribute("position") || 0);
@@ -503,11 +505,12 @@
       const cl = ref ? (codelists[`${ref.getAttribute("agencyID")}:${ref.getAttribute("id")}`] || codelists[ref.getAttribute("id")] || []) : [];
       return { id, pos, label: concepts[conceptId] || concepts[id] || id, values: cl.map(c => ({ id: c.id, label: c.label })) };
     }).sort((a, b) => a.pos - b.pos);
-    const tdEl = byTag(dsd, "TimeDimension")[0];
+    const tdEl = dl ? childEls(dl, "TimeDimension")[0] : null;
     const timeId = tdEl ? tdEl.getAttribute("id") : "TIME_PERIOD";
     // attribute codelists we care about (status flags)
     const flags = {};
-    byTag(dsd, "Attribute").forEach(a => {
+    const al = byTag(dsd, "AttributeList")[0];
+    (al ? childEls(al, "Attribute") : []).forEach(a => {
       const id = a.getAttribute("id");
       if (!/OBS_STATUS|OBS_FLAG/i.test(id)) return;
       const en = byTag(a, "Enumeration")[0];
@@ -523,6 +526,17 @@
       if (vals.length) constraint[id] = (constraint[id] || []).concat(vals);
     });
     return { title, annotations, dims, timeId, flags, constraint };
+  }
+
+  function parseConstraint(xml) {
+    const doc = parseXML(xml);
+    const out = {};
+    byTag(doc, "KeyValue").forEach(kv => {
+      const id = kv.getAttribute("id");
+      const vals = childEls(kv, "Value").map(v => v.textContent.trim());
+      if (vals.length) out[id] = (out[id] || []).concat(vals);
+    });
+    return out;
   }
 
   /* ------------------------------------------------------------------ */
@@ -556,12 +570,15 @@
     });
     const tdim = detectTimeDim(o.dims);
     const flags = Object.assign({}, o.flags || {});
-    const provisional = new Set(), forecast = new Set();
+    const provisional = new Set(), forecast = new Set(), partial = new Set();
+    const periodLabels = {};
     const now = new Date();
     if (tdim) {
       tdim.values.forEach(v => {
+        if (String(v.label) !== String(v.id)) periodLabels[v.id] = v.label;
         if (PROV_RE.test(v.label)) provisional.add(v.id);
         if (FORECAST_RE.test(v.label)) forecast.add(v.id);
+        if (PARTIAL_RE.test(v.label) && /^\d{4}$/.test(v.id)) partial.add(v.id);
         const ps = periodStart(v.id);
         if (ps && ps > now) forecast.add(v.id);
       });
@@ -588,6 +605,8 @@
       flags,
       provisional: sortTimes(Array.from(provisional)),
       forecast: sortTimes(Array.from(forecast)),
+      partial: sortTimes(Array.from(partial)),
+      periodLabels,
       updated: o.updated || null,
       pulledAt,
       url: o.url,
@@ -637,7 +656,7 @@
     const instEn = src.inst.en;
     const apa = `${instEn}. (${year}). ${title} (${code}) [Data set]. ${res.doi ? link : `Retrieved ${fmtDateEN(pulled)}, from ${link}`}`;
     const span = periodSpan(res);
-    const prov = res.provisional.length ? `; začasni podatki: ${res.provisional.join(", ")}` : "";
+    const prov = (res.partial.length ? `; delno leto: ${res.partial.map(p => res.periodLabels[p] || p).join(", ")}` : "") + (res.provisional.length ? `; začasni podatki: ${res.provisional.join(", ")}` : "");
     const fc = res.forecast.length ? `; napovedi: ${res.forecast[0]}${res.forecast.length > 1 ? "–" + res.forecast[res.forecast.length - 1] : ""}` : "";
     const short = `${src.abbrEn && res.lang !== "sl" ? src.abbrEn : src.abbr}, ${title} (${code})${span ? ", " + span : ""}${prov}${fc}; pridobljeno ${fmtDateSL(pulled)}`;
     return { fdv, inText, figure, apa, short, year, link };
@@ -681,9 +700,10 @@
   const pxweb = {
     lang(src, lang) { return src.langs.includes(lang) ? lang : src.langs[0]; },
     dbFor(src, lang) { return src.db ? (src.db[lang] || src.db[src.langs[0]]) : null; },
-    normId(src, id) {
+    normId(src, id, lang) {
       id = String(id).replace(/^\/+/, "");
       if (!/\.px$/i.test(id)) id += ".px";
+      if (src.key === "bsi" && lang) id = id.replace(/[es]\.px$/i, (lang === "sl" ? "s" : "e") + ".px");
       return id;
     },
     url(src, lang, id) {
@@ -693,7 +713,8 @@
     async browse(src, path, lang) {
       lang = this.lang(src, lang);
       const db = this.dbFor(src, lang);
-      const url = `${src.api}/${lang}/${db ? db + "/" : ""}${path || ""}`.replace(/\/$/, "");
+      let url = `${src.api}/${lang}/${db ? db + "/" : ""}${path || ""}`;
+      if (db || path) url = url.replace(/\/$/, "");
       const nodes = await request(url, { src });
       return nodes.map(n => {
         if (n.dbid) return { type: "folder", id: n.dbid, label: n.text || n.dbid };
@@ -708,10 +729,14 @@
       const walk = async (path, depth) => {
         if (depth > 6) return;
         let nodes;
-        try { nodes = await this.browse(src, path, lang); } catch (e) { return; }
+        for (let attempt = 0; attempt < 3; attempt++) {
+          try { nodes = await this.browse(src, path, lang); break; }
+          catch (e) { if (e.info && e.info.status === 429) { await sleep(11000); continue; } return; }
+        }
+        if (!nodes) return;
         for (const n of nodes) {
           if (n.type === "table") out.push(n);
-          else { await sleep(120); await walk(n.id, depth + 1); }
+          else { await sleep(CFG.walkDelay); await walk(n.id, depth + 1); }
         }
       };
       await walk("", 0);
@@ -723,7 +748,11 @@
       const out = [];
       for (const db of dbs) {
         let hits = [];
-        try { hits = await request(`${src.api}/${lang}/${db}?query=${encodeURIComponent(q)}&filter=*`, { src }); } catch (e) { continue; }
+        try { hits = await request(`${src.api}/${lang}/${db}?query=${encodeURIComponent(q)}`, { src }); } catch (e) { continue; }
+        if (!hits.length && !/\*/.test(q)) {
+          const wq = String(q).trim().split(/\s+/).map(w => w.length > 3 ? w + "*" : w).join(" ");
+          try { hits = await request(`${src.api}/${lang}/${db}?query=${encodeURIComponent(wq)}`, { src }); } catch (e) { /* ignore */ }
+        }
         hits.forEach(h => {
           const p = String(h.path || "").replace(/^\/+|\/+$/g, "");
           const rel = (src.db ? "" : db + "/") + (p ? p + "/" : "") + h.id;
@@ -732,25 +761,35 @@
       }
       return out;
     },
-    async meta(src, id, lang) {
+    async meta(src, id, lang, opts) {
       lang = this.lang(src, lang);
-      id = this.normId(src, id);
+      id = this.normId(src, id, lang);
       const url = this.url(src, lang, id);
       const m = await request(url, { src });
+      const ALL = COUNTRIES.map(c => c[0]);
       const dims = m.variables.map(v => {
         const isTime = !!v.time;
         const key = normKey(v.code + " " + v.text);
-        const role = isTime ? "time" : (/(drzav|country|geo|obcin|regij|zemlj|drzava|codeofbreakdown|teritorij|opstin|komun|republik)/.test(key) ? "geo" : null);
-        return {
-          id: v.code, label: v.text, role, required: !v.elimination,
-          values: v.values.map((c, i) => ({ id: c, label: v.valueTexts[i] })),
-        };
+        const d = { id: v.code, label: v.text, role: null, required: !v.elimination, values: v.values.map((c, i) => ({ id: c, label: v.valueTexts[i] })) };
+        if (isTime) d.role = "time";
+        else if (/(drzav|country|countries|geo|zemlj|teritorij|codeofbreakdown|kodaporazdelitve|partner)/.test(key) || (d.values.length >= 5 && countryCodesFor(d, ALL).length >= 4)) d.role = "geo";
+        return d;
       });
-      return { source: src.key, table: id, tableCode: pxFile(id).replace(/\.px$/i, ""), title: cleanTitle(m.title), lang, dims, url, web: src.web ? src.web(lang, id) : url, updated: null, timeMode: "list" };
+      let title = cleanTitle(m.title);
+      const code = pxFile(id).replace(/\.px$/i, "");
+      // PxWeb's own title is often generated ("… po: A, B, C"); the catalogue title reads better
+      if (!(opts && opts.title) && (/\bpo:|\bby:|:\s*[A-ZČŠŽ/ ]{3,},/.test(title) || title.length < 8)) {
+        try {
+          const hits = await this.search(src, code, lang);
+          const hit = hits.find(h => pxFile(h.id).toLowerCase() === pxFile(id).toLowerCase());
+          if (hit && hit.label) title = cleanTitle(hit.label);
+        } catch (_) { /* keep generated title */ }
+      }
+      return { source: src.key, table: id, tableCode: code, title: (opts && opts.title) || title, lang, dims, url, web: src.web ? src.web(lang, id) : url, updated: null, timeMode: "list" };
     },
     async query(src, id, sel, lang, opts) {
       lang = this.lang(src, lang);
-      id = this.normId(src, id);
+      id = this.normId(src, id, lang);
       const url = this.url(src, lang, id);
       const query = [];
       Object.keys(sel || {}).forEach(code => {
@@ -809,10 +848,7 @@
         request(`${src.api}/sdmx/2.1/contentconstraint/ESTAT/${id}`, { src, as: "text" }).catch(() => ""),
       ]);
       const st = parseStructure(sx, L);
-      if (cx) {
-        const cc = parseStructure(cx.includes("DataStructure") ? cx : cx, L);
-        Object.assign(st.constraint, cc.constraint);
-      }
+      if (cx) { try { Object.assign(st.constraint, parseConstraint(cx)); } catch (_) { /* ignore */ } }
       const dims = st.dims.map(d => {
         const avail = st.constraint[d.id];
         let values = d.values;
@@ -1011,8 +1047,26 @@
         const lbl = { ref_area: "Reference area", source: "Source", sex: "Sex", classif1: "Classification 1", classif2: "Classification 2", classif3: "Classification 3" }[c];
         return { id: c, label: lbl, role: c === "ref_area" ? "geo" : null, values: Array.from(seen, ([k, v]) => ({ id: k, label: v })) };
       });
-      // name classif dims after their content (e.g. "Age (Youth, adults)")
-      dims.forEach(d => { if (/^classif/.test(d.id) && d.values[0]) { const m = String(d.values[0].label).match(/^([^:]+):/); if (m) d.label = m[1].trim(); } });
+      // name classif dims after their content (e.g. "Age (Youth, adults)") and drop the prefix from values
+      dims.forEach(d => {
+        if (!/^classif/.test(d.id) || !d.values[0]) return;
+        const m = String(d.values[0].label).match(/^([^:]+):\s*/);
+        if (m) { d.label = m[1].trim(); d.values.forEach(v => { v.label = String(v.label).replace(/^[^:]+:\s*/, ""); }); }
+      });
+      // the survey source usually follows the country one to one: keep it as a note, not a dimension
+      const notes = [];
+      const srcDim = dims.find(d => d.id === "source");
+      if (srcDim) {
+        const per = new Map();
+        recs.forEach(r => { if (!per.has(r.ref_area)) per.set(r.ref_area, new Set()); per.get(r.ref_area).add(r.source); });
+        if (Array.from(per.values()).every(s => s.size === 1)) {
+          const areaLab = Object.fromEntries(dims[0].values.map(v => [v.id, v.label]));
+          const srcLab = Object.fromEntries(srcDim.values.map(v => [v.id, v.label]));
+          per.forEach((s, a) => notes.push(`${areaLab[a] || a}: ${srcLab[Array.from(s)[0]] || Array.from(s)[0]}`));
+          dims.splice(dims.indexOf(srcDim), 1);
+          cand.splice(cand.indexOf("source"), 1);
+        }
+      }
       const times = sortTimes(Array.from(new Set(recs.map(r => r.time))));
       dims.push({ id: "time", label: "Time", role: "time", values: times.map(x => ({ id: x, label: x })) });
       const flags = {};
@@ -1025,7 +1079,7 @@
         return row;
       });
       const title = (recs[0]["indicator.label"]) || (opts && opts.title) || id;
-      return finishResult({ source: "ilo", table: id, tableCode: id, title, lang: "en", dims, rows, updated: null, url, web: src.web(lang, id), query: { source: "ilo", table: id, sel, lang }, flags });
+      return finishResult({ source: "ilo", table: id, tableCode: id, title, lang: "en", dims, rows, updated: null, url, web: src.web(lang, id), query: { source: "ilo", table: id, sel, lang }, flags, notes });
     },
   };
 
@@ -1206,9 +1260,9 @@
     return cachedList(key, lang);
   }
   async function list(key, lang) { return cachedList(key, lang || CFG.lang); }
-  async function meta(key, id, lang) {
+  async function meta(key, id, lang, opts) {
     const s = src(key);
-    const m = await adapter(key).meta(s, id, lang || CFG.lang);
+    const m = await adapter(key).meta(s, id, lang || CFG.lang, opts);
     m.sourceInfo = { key, abbr: s.abbr, name: s.name, inst: s.inst };
     return m;
   }
