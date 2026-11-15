@@ -15,7 +15,7 @@
 (function (global) {
   "use strict";
 
-  const VERSION = "0.1.0";
+  const VERSION = "0.2.0";
   const CFG = { proxy: "", fetch: null, DOMParser: null, timeout: 90000, lang: "sl", walkDelay: 150 };
 
   /* ------------------------------------------------------------------ */
@@ -488,8 +488,21 @@
       codelists[`${ag}:${id}`] = codes;
       if (!codelists[id]) codelists[id] = codes;
     });
-    const concepts = {};
-    byTag(doc, "Concept").forEach(c => { concepts[c.getAttribute("id")] = localized(c, "Name", lang); });
+    const concepts = {}, conceptEnum = {};
+    byTag(doc, "ConceptScheme").forEach(cs => {
+      const sid = cs.getAttribute("id");
+      childEls(cs, "Concept").forEach(c => {
+        const cid = c.getAttribute("id");
+        const name = localized(c, "Name", lang);
+        concepts[`${sid}:${cid}`] = name;
+        if (!concepts[cid]) concepts[cid] = name;
+        const cr = childEls(c, "CoreRepresentation")[0];
+        const en = cr ? byTag(cr, "Enumeration")[0] : null;
+        const ref = en ? byTag(en, "Ref")[0] : null;
+        if (ref) { const k = { agency: ref.getAttribute("agencyID"), id: ref.getAttribute("id") }; conceptEnum[`${sid}:${cid}`] = k; if (!conceptEnum[cid]) conceptEnum[cid] = k; }
+      });
+    });
+    const clFor = (ref) => ref ? (codelists[`${ref.agency}:${ref.id}`] || codelists[ref.id] || []) : [];
     const dsd = byTag(doc, "DataStructure")[0];
     if (!dsd) throw new StatError("Struktura podatkov manjka v odgovoru.");
     const dl = byTag(dsd, "DimensionList")[0];
@@ -500,10 +513,13 @@
       const ci = byTag(d, "ConceptIdentity")[0];
       const cref = ci ? byTag(ci, "Ref")[0] : null;
       const conceptId = cref ? cref.getAttribute("id") : id;
-      const en = byTag(d, "Enumeration")[0];
-      const ref = en ? byTag(en, "Ref")[0] : null;
-      const cl = ref ? (codelists[`${ref.getAttribute("agencyID")}:${ref.getAttribute("id")}`] || codelists[ref.getAttribute("id")] || []) : [];
-      return { id, pos, label: concepts[conceptId] || concepts[id] || id, values: cl.map(c => ({ id: c.id, label: c.label })) };
+      const scheme = cref ? cref.getAttribute("maintainableParentID") : "";
+      const lr = childEls(d, "LocalRepresentation")[0];
+      const en = lr ? byTag(lr, "Enumeration")[0] : null;
+      const r0 = en ? byTag(en, "Ref")[0] : null;
+      const ref = r0 ? { agency: r0.getAttribute("agencyID"), id: r0.getAttribute("id") } : (conceptEnum[`${scheme}:${conceptId}`] || conceptEnum[conceptId] || null);
+      const cl = clFor(ref);
+      return { id, pos, label: concepts[`${scheme}:${conceptId}`] || concepts[conceptId] || concepts[id] || id, values: cl.map(c => ({ id: c.id, label: c.label })) };
     }).sort((a, b) => a.pos - b.pos);
     const tdEl = dl ? childEls(dl, "TimeDimension")[0] : null;
     const timeId = tdEl ? tdEl.getAttribute("id") : "TIME_PERIOD";
@@ -972,6 +988,8 @@
         row.value = num(r.OBS_VALUE);
         const st = r.OBS_STATUS || r.OBS_FLAG || "";
         if (st && st !== "A") row.status = st;
+        const la = r.LATEST_ACTUAL_ANNUAL_DATA;
+        if (!row.status && la && /^\d{4}$/.test(la) && /^\d{4}/.test(row[timeId]) && Number(String(row[timeId]).slice(0, 4)) > Number(la)) row.status = "F";
         return row;
       });
       tdim.values = sortTimes(Array.from(times)).map(t => ({ id: t, label: t }));
@@ -1260,11 +1278,18 @@
     return cachedList(key, lang);
   }
   async function list(key, lang) { return cachedList(key, lang || CFG.lang); }
+  const META_CACHE = new Map();
   async function meta(key, id, lang, opts) {
     const s = src(key);
-    const m = await adapter(key).meta(s, id, lang || CFG.lang, opts);
-    m.sourceInfo = { key, abbr: s.abbr, name: s.name, inst: s.inst };
-    return m;
+    const ck = [key, id, lang || CFG.lang, (opts && opts.title) || ""].join("|");
+    if (META_CACHE.has(ck)) return META_CACHE.get(ck);
+    const p = (async () => {
+      const m = await adapter(key).meta(s, id, lang || CFG.lang, opts);
+      m.sourceInfo = { key, abbr: s.abbr, name: s.name, inst: s.inst };
+      return m;
+    })();
+    META_CACHE.set(ck, p);
+    try { return await p; } catch (e) { META_CACHE.delete(ck); throw e; }
   }
   async function query(key, id, sel, lang, opts) {
     const s = src(key);
