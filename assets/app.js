@@ -94,6 +94,20 @@
   function b64d(s) { try { s = s.replace(/-/g, "+").replace(/_/g, "/"); while (s.length % 4) s += "="; return JSON.parse(decodeURIComponent(escape(atob(s)))); } catch (_) { return null; } }
   function dataLangFor(src, want) { if (want && src.langs.includes(want)) return want; if (src.langs.includes(LANG)) return LANG; if (src.langs.includes("en")) return "en"; return src.langs[0]; }
   function sentence(s) { s = String(s || ""); return s === s.toUpperCase() && /[A-ZČŠŽ]/.test(s) ? s.charAt(0) + s.slice(1).toLowerCase() : s; }
+  // common dimension names in Slovene (the source's own name stays in the tooltip)
+  const DIM_SL = [
+    [/^(ref_area|geo|country|REF_AREA|COUNTRY|JURISDICTION)$/i, "Država"], [/^(time|TIME_PERIOD)$/i, "Obdobje"], [/^sex$/i, "Spol"],
+    [/^(freq|FREQUENCY)$/i, "Pogostost"], [/^(unit|UNIT_MEASURE|UNIT)$/i, "Enota"], [/^na_item$/i, "Kazalnik"], [/^INDICATOR$/i, "Kazalnik"],
+    [/^CURRENCY$/i, "Valuta"], [/^CURRENCY_DENOM$/i, "Proti valuti"], [/^(s_adj|ADJUSTMENT)$/i, "Desezoniranje"], [/^TRANSFORMATION$/i, "Preračun"],
+  ];
+  function dimLabel(d) {
+    if (LANG === "sl") {
+      for (const [re, l] of DIM_SL) if (re.test(d.id)) return l;
+      if (/^classif\d$/.test(d.id) && /^Age\b/i.test(d.label)) return "Starost";
+      if (/^classif\d$/.test(d.id) && /economic activity/i.test(d.label)) return "Dejavnost";
+    }
+    return sentence(d.label);
+  }
   function debounce(fn, ms) { let h; return function () { const a = arguments; clearTimeout(h); h = setTimeout(() => fn.apply(null, a), ms); }; }
   function tableHref(source, id, extra) {
     const p = new URLSearchParams(Object.assign({ v: "table", s: source, t: id }, extra || {}));
@@ -375,7 +389,7 @@
     const loc = localDims();
     const item = (d, isLocal) => {
       const open = st.open === (isLocal ? "L:" : "") + d.id;
-      return `<div class="item ${open ? "open" : ""}" data-d="${esc(d.id)}" data-local="${isLocal ? 1 : 0}"><button class="row" aria-expanded="${open}"><span class="k">${esc(sentence(d.label))}</span><span class="v">${esc(summary(d, isLocal))}</span><span class="c">${open ? esc(t("done")) : esc(t("change"))}</span></button>${open ? pickerHTML(d, isLocal) : ""}</div>`;
+      return `<div class="item ${open ? "open" : ""}" data-d="${esc(d.id)}" data-local="${isLocal ? 1 : 0}"><button class="row" aria-expanded="${open}"><span class="k" title="${esc(d.label)}">${esc(dimLabel(d))}</span><span class="v">${esc(summary(d, isLocal))}</span><span class="c">${open ? esc(t("done")) : esc(t("change"))}</span></button>${open ? pickerHTML(d, isLocal) : ""}</div>`;
     };
     $("#selBox").innerHTML = `<div class="sel">${dims.map(d => item(d, false)).join("")}${loc.map(d => item(d, true)).join("")}</div>`;
     $$("#selBox .item").forEach(wireItem);
@@ -512,7 +526,7 @@
     return out;
   }
   function missingRequired() {
-    return st.meta.dims.filter(d => d.required && d.role !== "time" && !(Array.isArray(st.sel[d.id]) && st.sel[d.id].length) && st.sel[d.id] !== "*").map(d => sentence(d.label));
+    return st.meta.dims.filter(d => d.required && d.role !== "time" && !(Array.isArray(st.sel[d.id]) && st.sel[d.id].length) && st.sel[d.id] !== "*").map(d => dimLabel(d));
   }
   function shareURL() {
     const u = new URL(location.href);
@@ -579,7 +593,7 @@
     const varying = nonT.filter(d => new Set(rows.map(x => x[d.id])).size > 1);
     const fixed = nonT.filter(d => new Set(rows.map(x => x[d.id])).size === 1 && rows.length);
     const times = tId ? r.dims.find(d => d.id === tId).values.map(v => v.id).filter(tt => rows.some(x => x[tId] === tt)) : [];
-    const fixedTxt = fixed.map(d => [sentence(d.label), lab(d.id, rows[0][d.id])]);
+    const fixedTxt = fixed.map(d => [dimLabel(d), lab(d.id, rows[0][d.id])]);
     if (tId && times.length) {
       const order = varying.map(d => new Map(d.values.map((v, i) => [String(v.id), i])));
       const map = new Map();
@@ -589,9 +603,9 @@
         const e = map.get(k); e.vals[x[tId]] = x.value; if (x.status) e.st[x[tId]] = x.status;
       });
       const body = Array.from(map.values()).sort((a, b) => { for (let i = 0; i < varying.length; i++) { const dd = (order[i].get(String(a.codes[i])) ?? 1e9) - (order[i].get(String(b.codes[i])) ?? 1e9); if (dd) return dd; } return 0; });
-      return { kind: "time", head: varying.map(d => sentence(d.label)), times, body: body.map(e => ({ labels: e.codes.map((c, i) => lab(varying[i].id, c)), vals: times.map(tt => e.vals[tt]), st: times.map(tt => e.st[tt] || "") })), fixedTxt };
+      return { kind: "time", head: varying.map(d => dimLabel(d)), times, body: body.map(e => ({ labels: e.codes.map((c, i) => lab(varying[i].id, c)), vals: times.map(tt => e.vals[tt]), st: times.map(tt => e.st[tt] || "") })), fixedTxt };
     }
-    return { kind: "flat", head: varying.map(d => sentence(d.label)), body: rows.map(x => ({ labels: varying.map(d => lab(d.id, x[d.id])), vals: [x.value], st: [x.status || ""] })), fixedTxt, times: [LANG === "en" ? "Value" : "Vrednost"] };
+    return { kind: "flat", head: varying.map(d => dimLabel(d)), body: rows.map(x => ({ labels: varying.map(d => lab(d.id, x[d.id])), vals: [x.value], st: [x.status || ""] })), fixedTxt, times: [LANG === "en" ? "Value" : "Vrednost"] };
   }
   function valueFormatter(r) {
     let dec = 0;
