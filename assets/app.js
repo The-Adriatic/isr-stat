@@ -913,7 +913,7 @@
   }
   async function fillProfile(items, iso) {
     const x0 = items[0];
-    const m = await S.meta(x0.source, x0.table, x0.lang);
+    const m = await S.meta(x0.source, x0.table, x0.lang, x0.structure ? { structure: resolveStructure(x0.structure) } : undefined);
     const gd = m.dims.find(d => d.id === x0.geo);
     const code = gd ? S.countryCodesFor(gd, [iso])[0] : undefined;
     if (code === undefined) { items.forEach(x => setFig(x, null, null, [])); return; }

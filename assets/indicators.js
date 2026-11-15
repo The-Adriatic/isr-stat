@@ -18,7 +18,18 @@
   "use strict";
   const WB6 = ["RS", "BA", "ME", "MK", "AL", "XK"];
   const REGION = ["SI", "HR", "RS", "BA", "ME", "MK", "AL", "XK"];
-  const WEO = { source: "imf", table: "IMF.RES,WEO,9.0.0", lang: "en", geo: "COUNTRY", period: { from: "2015" }, countries: REGION, batch: "weo" };
+  // The WEO structure call returns three megabytes; this view needs only our countries and a few indicators.
+  const WEO_CODES = ["NGDP_RPCH", "PPPPC", "BCA_NGDPD", "PCPIPCH", "GGXWDG_NGDP", "GGXCNL_NGDP", "LP"];
+  const WEO_STRUCTURE = {
+    title: "World Economic Outlook (WEO)",
+    dims: [
+      { id: "COUNTRY", label: "Country", values: ((g.ISRStat && g.ISRStat.COUNTRIES) || []).map(c => ({ id: c[0] === "XK" ? "KOS" : c[1], label: { sl: c[2], en: c[3] } })) },
+      { id: "INDICATOR", label: "Indicator", values: WEO_CODES.map(c => ({ id: c, label: c })) },
+      { id: "FREQUENCY", label: "Frequency", values: [{ id: "A", label: { sl: "letno", en: "Annual" } }] },
+      { id: "TIME_PERIOD", label: "Time period", role: "time", values: [] },
+    ],
+  };
+  const WEO = { source: "imf", table: "IMF.RES,WEO,9.0.0", lang: "en", geo: "COUNTRY", period: { from: "2015" }, countries: REGION, batch: "weo", structure: WEO_STRUCTURE };
 
   const TOPICS = [
     { id: "gospodarstvo", name: { sl: "Gospodarstvo", en: "Economy" }, about: { sl: "Rast, raven razvitosti in zunanje ravnovesje držav.", en: "Growth, income level and external balance." },

@@ -15,7 +15,7 @@
 (function (global) {
   "use strict";
 
-  const VERSION = "0.5.3";
+  const VERSION = "0.5.4";
   const CFG = { proxy: "", fetch: null, DOMParser: null, timeout: 90000, lang: "sl", walkDelay: 150 };
 
   /* ------------------------------------------------------------------ */
@@ -959,6 +959,7 @@
     async search(src, q, lang) { return rankSearch(await cachedList(src.key, lang), q); },
     async meta(src, id, lang, opts) {
       const p = flowParts(id);
+      if (opts && opts.structure) opts.structure.dims.forEach(d => { if (!d.role && /^(REF_AREA|COUNTRY|GEO|JURISDICTION|AREA)$/i.test(d.id)) d.role = "geo"; });
       if (opts && opts.structure) return Object.assign({ source: src.key, table: `${p.agency},${p.id},${p.version}`, tableCode: p.id, lang: "en", url: `${src.api}/data/${p.agency},${p.id},${p.version}`, web: src.web(lang, id), updated: null, timeMode: "range", flags: {}, timeId: "TIME_PERIOD" }, opts.structure, { keyOrder: opts.structure.dims.filter(d => d.role !== "time").map(d => d.id) });
       const det = src.partial ? "&detail=referencepartial" : "";
       const url = `${src.api}/dataflow/${p.agency}/${p.id}/${p.version}?references=descendants${det}`;
