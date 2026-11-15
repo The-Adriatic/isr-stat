@@ -147,7 +147,9 @@
     let series = m.series;
     let dropped = 0;
     if (series.length > opts.maxSeries) { dropped = series.length - opts.maxSeries; series = series.slice(0, opts.maxSeries); }
-    const focusIdx = opts.focus === undefined || opts.focus === null ? (series.length <= 3 ? -1 : 0) : Math.min(opts.focus, series.length - 1);
+    // default focus: Slovenia when it is one of many series, otherwise none (up to three) or the first
+    const siIdx = series.findIndex(sr => /(^|¦)(SI|SVN)(¦|$)/.test(sr.key) || /^Sloven/i.test(sr.label));
+    const focusIdx = opts.focus === undefined || opts.focus === null ? (series.length <= 3 ? -1 : (siIdx >= 0 ? siIdx : 0)) : Math.min(opts.focus, series.length - 1);
 
     if (m.kind === "line") drawLines(svg, m, series, { W, H, plotTop, plotBottomPad, fmt, opts, focusIdx, info });
     else drawBars(svg, m, series, { W, H, plotTop, plotBottomPad, fmt, opts, focusIdx, info });

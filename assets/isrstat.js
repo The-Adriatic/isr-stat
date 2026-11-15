@@ -15,7 +15,7 @@
 (function (global) {
   "use strict";
 
-  const VERSION = "0.2.3";
+  const VERSION = "0.3.0";
   const CFG = { proxy: "", fetch: null, DOMParser: null, timeout: 90000, lang: "sl", walkDelay: 150 };
 
   /* ------------------------------------------------------------------ */
@@ -288,6 +288,12 @@
       r = await _fetch()(u, { method: opts.method || "GET", body: opts.body || undefined, headers: opts.headers || {}, signal: ctrl ? ctrl.signal : undefined });
     } catch (e) {
       const aborted = e && e.name === "AbortError";
+      if (!aborted && !opts._retried && (opts.method || "GET") === "GET") {
+        // some servers (World Bank, ECB) drop CORS headers on throttled or cached answers now and then
+        if (timer) clearTimeout(timer);
+        await sleep(1200);
+        try { return await request(url, Object.assign({}, opts, { _retried: true })); } catch (e2) { if (!CFG.proxy) throw e2; }
+      }
       if (!aborted && CFG.proxy && !opts._viaProxy && !(src && src.needsProxy) && /^https?:/.test(url)) {
         // the source refused a direct browser call (often an error page without CORS headers): try the ISR proxy
         if (timer) clearTimeout(timer);
@@ -803,7 +809,7 @@
         else if (/(drzav|country|countries|geo|zemlj|teritorij|codeofbreakdown|kodaporazdelitve|partner)/.test(key) || (d.values.length >= 5 && countryCodesFor(d, ALL).length >= 4)) d.role = "geo";
         return d;
       });
-      let title = cleanTitle(m.title);
+      let title = cleanTitle(String(m.title).replace(/\s+(po spremenljivkah|by variables|po varijablama)\s*:.*$/i, ""));
       const code = pxFile(id).replace(/\.px$/i, "");
       // PxWeb's own title is often generated ("… po: A, B, C"); the catalogue title reads better
       if (!(opts && opts.title) && (/\bpo:|\bby:|:\s*[A-ZČŠŽ/ ]{3,},/.test(title) || title.length < 8)) {

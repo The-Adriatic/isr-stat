@@ -9,7 +9,19 @@
       "table": "2490004S.px",
       "tableTitle": "Izvoz in uvoz po državah, Slovenija, letno",
       "lang": "sl",
-      "sel": { "UVOZ/IZVOZ": ["1", "2"], "DRŽAVA": ["XS"], "ENOTA": ["EUR"], "LETO": "*" }
+      "sel": {
+        "UVOZ/IZVOZ": [
+          "1",
+          "2"
+        ],
+        "DRŽAVA": [
+          "XS"
+        ],
+        "ENOTA": [
+          "EUR"
+        ],
+        "LETO": "*"
+      }
     },
     {
       "id": "si-izvoz-zahodni-balkan",
@@ -19,7 +31,81 @@
       "table": "2490004S.px",
       "tableTitle": "Izvoz in uvoz po državah, Slovenija, letno",
       "lang": "sl",
-      "sel": { "UVOZ/IZVOZ": ["2"], "DRŽAVA": ["XS", "BA", "ME", "MK", "AL", "XK"], "ENOTA": ["EUR"], "LETO": { "last": 10 } }
+      "sel": {
+        "UVOZ/IZVOZ": [
+          "2"
+        ],
+        "DRŽAVA": [
+          "XS",
+          "BA",
+          "ME",
+          "MK",
+          "AL",
+          "XK"
+        ],
+        "ENOTA": [
+          "EUR"
+        ],
+        "LETO": {
+          "last": 10
+        }
+      }
+    },
+    {
+      "id": "nti-si-zahodni-balkan",
+      "title": "Neposredne naložbe Slovenije v državah Zahodnega Balkana (stanje, mio EUR)",
+      "note": "Banka Slovenije, NTI v tujini po državah, letno. Banka Slovenije države označuje s svojimi številkami (Srbija 48, Albanija 8).",
+      "source": "bsi",
+      "table": "30_EOT/50_NEPOSREDNE_NALOZBE/nn_s_2as.px",
+      "tableTitle": "Neposredne naložbe po smeri naložbe, neposredne naložbe v tujini - mio EUR - letno, po državah",
+      "lang": "sl",
+      "sel": {
+        "Datum": {
+          "last": 10
+        },
+        "Porazdelitev": [
+          "0"
+        ],
+        "Koda porazdelitve": [
+          "48",
+          "12",
+          "40",
+          "41",
+          "8",
+          "55"
+        ],
+        "Postavke": [
+          "0"
+        ]
+      }
+    },
+    {
+      "id": "weo-rast-bdp-regija",
+      "title": "Realna rast BDP z napovedmi IMF (WEO): Slovenija, Hrvaška, Zahodni Balkan",
+      "note": "IMF, World Economic Outlook. Leta po zadnjem dejanskem podatku so napovedi.",
+      "source": "imf",
+      "table": "IMF.RES,WEO,9.0.0",
+      "lang": "en",
+      "sel": {
+        "COUNTRY": [
+          "SVN",
+          "HRV",
+          "SRB",
+          "BIH",
+          "MNE",
+          "MKD",
+          "ALB"
+        ],
+        "INDICATOR": [
+          "NGDP_RPCH"
+        ],
+        "FREQUENCY": [
+          "A"
+        ],
+        "TIME_PERIOD": {
+          "from": "2019"
+        }
+      }
     },
     {
       "id": "bdp-rast-si-zb",
@@ -28,7 +114,29 @@
       "source": "eurostat",
       "table": "nama_10_gdp",
       "lang": "en",
-      "sel": { "freq": ["A"], "unit": ["CLV_PCH_PRE"], "na_item": ["B1GQ"], "geo": ["SI", "RS", "ME", "MK", "AL", "BA", "XK"], "time": { "last": 10 } }
+      "sel": {
+        "freq": [
+          "A"
+        ],
+        "unit": [
+          "CLV_PCH_PRE"
+        ],
+        "na_item": [
+          "B1GQ"
+        ],
+        "geo": [
+          "SI",
+          "RS",
+          "ME",
+          "MK",
+          "AL",
+          "BA",
+          "XK"
+        ],
+        "time": {
+          "last": 10
+        }
+      }
     },
     {
       "id": "bdp-pc-ppp-zb",
@@ -37,7 +145,20 @@
       "source": "worldbank",
       "table": "NY.GDP.PCAP.PP.KD",
       "lang": "en",
-      "sel": { "country": ["SVN", "SRB", "BIH", "MNE", "MKD", "ALB", "XKX"], "time": { "from": "2010" } }
+      "sel": {
+        "country": [
+          "SVN",
+          "SRB",
+          "BIH",
+          "MNE",
+          "MKD",
+          "ALB",
+          "XKX"
+        ],
+        "time": {
+          "from": "2010"
+        }
+      }
     },
     {
       "id": "brezposelnost-zb",
@@ -46,7 +167,20 @@
       "source": "ilo",
       "table": "UNE_DEAP_SEX_AGE_RT_A",
       "lang": "en",
-      "sel": { "ref_area": ["SVN", "SRB", "BIH", "MNE", "MKD", "ALB", "KOS"], "time": { "from": "2015" } }
+      "sel": {
+        "ref_area": [
+          "SVN",
+          "SRB",
+          "BIH",
+          "MNE",
+          "MKD",
+          "ALB",
+          "KOS"
+        ],
+        "time": {
+          "from": "2015"
+        }
+      }
     },
     {
       "id": "eur-usd-mesecno",
@@ -55,7 +189,26 @@
       "source": "ecb",
       "table": "ECB,EXR,1.0",
       "lang": "en",
-      "sel": { "FREQ": ["M"], "CURRENCY": ["USD"], "CURRENCY_DENOM": ["EUR"], "EXR_TYPE": ["SP00"], "EXR_SUFFIX": ["A"], "TIME_PERIOD": { "from": "2015-01" } }
+      "sel": {
+        "FREQ": [
+          "M"
+        ],
+        "CURRENCY": [
+          "USD"
+        ],
+        "CURRENCY_DENOM": [
+          "EUR"
+        ],
+        "EXR_TYPE": [
+          "SP00"
+        ],
+        "EXR_SUFFIX": [
+          "A"
+        ],
+        "TIME_PERIOD": {
+          "from": "2015-01"
+        }
+      }
     }
   ]
 }
