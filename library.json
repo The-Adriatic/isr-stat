@@ -1,0 +1,61 @@
+{
+  "about": "Skupna knjižnica ISR Stat. Vsak vnos je shranjena poizvedba: vir, tabela, jezik podatkov in izbor. Ob odprtju se podatki vedno pridobijo znova pri viru.",
+  "items": [
+    {
+      "id": "si-rs-blagovna-menjava",
+      "title": "Slovenija–Srbija: blagovna menjava (EUR)",
+      "note": "SURS, izvoz in uvoz po državah, letno. Srbija ima pri SURS oznako XS.",
+      "source": "surs",
+      "table": "2490004S.px",
+      "tableTitle": "Izvoz in uvoz po državah, Slovenija, letno",
+      "lang": "sl",
+      "sel": { "UVOZ/IZVOZ": ["1", "2"], "DRŽAVA": ["XS"], "ENOTA": ["EUR"], "LETO": "*" }
+    },
+    {
+      "id": "si-izvoz-zahodni-balkan",
+      "title": "Izvoz Slovenije v države Zahodnega Balkana (EUR)",
+      "note": "SURS, zadnjih 10 let; prvo leto je lahko delno in začasno.",
+      "source": "surs",
+      "table": "2490004S.px",
+      "tableTitle": "Izvoz in uvoz po državah, Slovenija, letno",
+      "lang": "sl",
+      "sel": { "UVOZ/IZVOZ": ["2"], "DRŽAVA": ["XS", "BA", "ME", "MK", "AL", "XK"], "ENOTA": ["EUR"], "LETO": { "last": 10 } }
+    },
+    {
+      "id": "bdp-rast-si-zb",
+      "title": "Realna rast BDP: Slovenija in Zahodni Balkan",
+      "note": "Eurostat, nama_10_gdp, sprememba obsega v %. Pokritost držav kandidatk je nepopolna.",
+      "source": "eurostat",
+      "table": "nama_10_gdp",
+      "lang": "en",
+      "sel": { "freq": ["A"], "unit": ["CLV_PCH_PRE"], "na_item": ["B1GQ"], "geo": ["SI", "RS", "ME", "MK", "AL", "BA", "XK"], "time": { "last": 10 } }
+    },
+    {
+      "id": "bdp-pc-ppp-zb",
+      "title": "BDP na prebivalca po PKM: Slovenija in Zahodni Balkan",
+      "note": "Svetovna banka, WDI, stalni mednarodni dolarji.",
+      "source": "worldbank",
+      "table": "NY.GDP.PCAP.PP.KD",
+      "lang": "en",
+      "sel": { "country": ["SVN", "SRB", "BIH", "MNE", "MKD", "ALB", "XKX"], "time": { "from": "2010" } }
+    },
+    {
+      "id": "brezposelnost-zb",
+      "title": "Stopnja brezposelnosti: Slovenija in Zahodni Balkan",
+      "note": "ILO, anketa o delovni sili, po spolu in starosti; v rezultatu filtrirajte Spol in Starost.",
+      "source": "ilo",
+      "table": "UNE_DEAP_SEX_AGE_RT_A",
+      "lang": "en",
+      "sel": { "ref_area": ["SVN", "SRB", "BIH", "MNE", "MKD", "ALB", "KOS"], "time": { "from": "2015" } }
+    },
+    {
+      "id": "eur-usd-mesecno",
+      "title": "Tečaj EUR/USD, mesečno povprečje",
+      "note": "ECB, referenčni tečaj.",
+      "source": "ecb",
+      "table": "ECB,EXR,1.0",
+      "lang": "en",
+      "sel": { "FREQ": ["M"], "CURRENCY": ["USD"], "CURRENCY_DENOM": ["EUR"], "EXR_TYPE": ["SP00"], "EXR_SUFFIX": ["A"], "TIME_PERIOD": { "from": "2015-01" } }
+    }
+  ]
+}

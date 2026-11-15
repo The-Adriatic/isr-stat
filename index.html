@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ISR Stat · Inštitut za strateške rešitve (ISR)</title>
+<meta name="description" content="Uradna statistika iz prvih virov: SURS, Banka Slovenije, Eurostat, ECB, OECD, IMF, ILO, Svetovna banka in statistični uradi Zahodnega Balkana.">
+<link rel="icon" href="assets/isr-logo-navy.svg">
+<link rel="preload" href="assets/fonts/noto-sans-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="assets/style.css">
+<script>
+  // Nastavitve. proxy: naslov posrednika ISR (Cloudflare Worker) za vire brez CORS, npr. "https://isr-stat-proxy.<račun>.workers.dev"
+  window.ISR_CONFIG = { proxy: "", catalog: "catalog" };
+</script>
+</head>
+<body>
+<header class="top">
+  <button class="menu" id="menuBtn" aria-label="Meni">☰</button>
+  <a class="brand" href="./" data-nav><img src="assets/isr-logo-white-on-navy.svg" alt="ISR"><span id="brandName">Statistika</span></a>
+  <form class="gsearch" id="gform" role="search"><input id="gq" name="q" autocomplete="off" aria-label="Iskanje"><button id="gbtn">Išči</button></form>
+  <div class="langs"><button data-lang="sl">SL</button><button data-lang="en">EN</button></div>
+</header>
+<div class="shell">
+  <nav class="side" id="side" aria-label="Viri"></nav>
+  <main id="main"></main>
+</div>
+<div class="tip" id="tip"></div>
+<div class="toast" id="toast" role="status"></div>
+<script src="assets/vendor/xlsx.mini.min.js" defer></script>
+<script src="assets/isrstat.js"></script>
+<script src="assets/chart.js"></script>
+<script src="assets/app.js"></script>
+</body>
+</html>
