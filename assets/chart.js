@@ -180,7 +180,8 @@
     if (!vals.length) return;
     const allPos = Math.min.apply(null, vals) >= 0;
     const sc = niceScale(Math.min.apply(null, vals), Math.max.apply(null, vals), 5, allPos && Math.min.apply(null, vals) < Math.max.apply(null, vals) * 0.35);
-    const labelW = series.length > 1 ? Math.min(220, Math.max(90, Math.max.apply(null, series.map(s => s.label.length)) * 6.6 + 64)) : 64;
+    const narrow = W < 600;
+    const labelW = narrow ? 52 : (series.length > 1 ? Math.min(220, Math.max(90, Math.max.apply(null, series.map(s => s.label.length)) * 6.6 + 64)) : 64);
     const yAxisW = Math.max.apply(null, sc.ticks.map(t => fmt.axis(t, sc.step).length)) * 7.2 + 12;
     const L = 24 + yAxisW, R = W - 24 - labelW, Tp = plotTop, B = H - plotBottomPad;
     const n = m.times.length;
@@ -198,7 +199,7 @@
     const every = Math.ceil(n / maxLabels);
     m.times.forEach((t, i) => {
       if (i % every !== 0 && i !== n - 1) return;
-      if (i !== n - 1 && n - 1 - i < every * 0.6) return;
+      if (i !== n - 1 && n - 1 - i < every) return;
       text(g, X(i), B + 20, t, { "font-size": 12, fill: T.muted, "text-anchor": "middle" });
     });
     // projections: a pale band from the first projected period, labelled
@@ -244,7 +245,8 @@
     for (let k = endLabels.length - 1; k >= 0; k--) { if (endLabels[k].y > B + 4) endLabels[k].y = B + 4; if (k > 0 && endLabels[k].y - endLabels[k - 1].y < gap) endLabels[k - 1].y = endLabels[k].y - gap; }
     const maxChars = Math.floor((labelW - 12) / 6.6);
     endLabels.forEach(e => {
-      const lbl = series.length > 1 ? `${fmt.value(e.v)}  ${trunc(e.label, Math.max(6, maxChars - fmt.value(e.v).length - 2))}` : fmt.value(e.v);
+      if (narrow && series.length > 1 && e.weight !== 700) return;   // on phones the legend names the series
+      const lbl = series.length > 1 && !narrow ? `${fmt.value(e.v)}  ${trunc(e.label, Math.max(6, maxChars - fmt.value(e.v).length - 2))}` : fmt.value(e.v);
       text(g, R + 10, e.y + 4, lbl, { "font-size": 12, fill: e.color, "font-weight": e.weight });
     });
     // hover layer
