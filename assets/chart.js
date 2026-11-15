@@ -8,7 +8,7 @@
 
   const T = {
     navy: "#173049", deep: "#0F2236", steel: "#688FA9", sky: "#A8CBE2", pale: "#E6EEF4", lead: "#557C97",
-    context: "#A9BCCB", grid: "#E3EAF0", ink: "#173049", muted: "#557C97", surface: "#FFFFFF",
+    context: "#C2CDD7", grid: "#ECEFF2", ink: "#0F2236", muted: "#8A96A3", surface: "#FFFFFF",
   };
   // validated categorical palette (dataviz reference, light mode), fixed order
   const PALETTE = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#6250d6", "#e34948"];
@@ -130,18 +130,22 @@
     }
     const fmt = makeFormat(opts.lang, allVals.map(v => (v === null || v === undefined || !isFinite(v) ? v : Math.round(v * 1000) / 1000)));
     const subtitle = [opts.subtitle, sc0.tag ? (opts.lang === "en" ? `in ${sc0.tag}` : `v ${sc0.tag}`) : ""].filter(Boolean).join(" · ");
-    const svg = el("svg", { xmlns: NS, viewBox: `0 0 ${W} ${H}`, width: W, height: H, role: "img", "aria-label": opts.title, style: "display:block;max-width:100%;height:auto;background:#fff" });
-    el("rect", { x: 0, y: 0, width: W, height: H, fill: T.surface }, svg);
-    // titles
-    const pad = { l: 24, r: 24, t: 24 };
-    let y = pad.t + 20;
-    const titleLines = wrap(opts.title || "", Math.floor((W - 48) / 10.5));
-    titleLines.slice(0, 2).forEach((ln, i) => text(svg, pad.l, y + i * 26, ln, { "font-size": 20, "font-weight": 700, fill: T.ink }));
-    y += (Math.min(2, titleLines.length) - 1) * 26;
-    if (subtitle) { y += 24; text(svg, pad.l, y, trunc(subtitle, Math.floor((W - 48) / 7.2)), { "font-size": 14, "font-weight": 300, fill: T.muted }); }
-    const plotTop = y + 30;
-    const plotBottomPad = 52;
-    const info = { svg, model: m, fmt, series: [] };
+    const svg = el("svg", { xmlns: NS, viewBox: `0 0 ${W} ${H}`, width: W, height: H, role: "img", "aria-label": opts.title, style: "display:block;max-width:100%;height:auto" });
+    const pad = { l: opts.bare ? 0 : 24, r: 24, t: 24 };
+    let plotTop, plotBottomPad;
+    if (opts.bare) { plotTop = 12; plotBottomPad = 30; }
+    else {
+      el("rect", { x: 0, y: 0, width: W, height: H, fill: T.surface }, svg);
+      let y = pad.t + 20;
+      const titleLines = wrap(opts.title || "", Math.floor((W - 48) / 10.5));
+      titleLines.slice(0, 2).forEach((ln, i) => text(svg, pad.l, y + i * 26, ln, { "font-size": 20, "font-weight": 700, fill: T.ink }));
+      y += (Math.min(2, titleLines.length) - 1) * 26;
+      if (subtitle) { y += 24; text(svg, pad.l, y, trunc(subtitle, Math.floor((W - 48) / 7.2)), { "font-size": 14, "font-weight": 300, fill: T.muted }); }
+      plotTop = y + 30;
+      plotBottomPad = 52;
+    }
+    const scaleTag = sc0.tag;
+    const info = { svg, model: m, fmt, series: [], scaleTag };
 
     let series = m.series;
     let dropped = 0;
@@ -156,7 +160,8 @@
     // source line
     const skippedTxt = m.skipped && m.skipped.length ? (opts.lang === "en" ? `Part-year ${m.skipped.join(", ")} not shown.` : `Delno leto ${m.skipped.join(", ")} ni prikazano.`) : "";
     const foot = [opts.source, skippedTxt, dropped ? (opts.lang === "en" ? `Showing ${series.length} of ${series.length + dropped} series.` : `Prikazanih ${series.length} od ${series.length + dropped} serij.`) : ""].filter(Boolean).join("  ");
-    text(svg, pad.l, H - 18, foot, { "font-size": 12, fill: T.muted });
+    if (!opts.bare) text(svg, pad.l, H - 18, foot, { "font-size": 12, fill: T.muted });
+    info.skipped = m.skipped || [];
     container.appendChild(svg);
     info.series = series.map((s, i) => ({ key: s.key, label: s.label, color: colorFor(i, series.length, opts.mode, focusIdx) }));
     info.dropped = dropped;
@@ -183,7 +188,7 @@
     const narrow = W < 600;
     const labelW = narrow ? 52 : (series.length > 1 ? Math.min(220, Math.max(90, Math.max.apply(null, series.map(s => s.label.length)) * 6.6 + 64)) : 64);
     const yAxisW = Math.max.apply(null, sc.ticks.map(t => fmt.axis(t, sc.step).length)) * 7.2 + 12;
-    const L = 24 + yAxisW, R = W - 24 - labelW, Tp = plotTop, B = H - plotBottomPad;
+    const L = (opts.bare ? 0 : 24) + yAxisW, R = W - (opts.bare ? 0 : 24) - labelW, Tp = plotTop, B = H - plotBottomPad;
     const n = m.times.length;
     const X = (i) => L + (n === 1 ? (R - L) / 2 : (i * (R - L)) / (n - 1));
     const Y = (v) => B - ((v - sc.lo) / (sc.hi - sc.lo)) * (B - Tp);
@@ -191,8 +196,8 @@
     const gBand = el("g", {}, g);
     // grid + y labels
     sc.ticks.forEach(t => {
-      el("line", { x1: L, x2: R, y1: Y(t), y2: Y(t), stroke: t === 0 ? "#9FB0BF" : T.grid, "stroke-width": 1 }, g);
-      text(g, L - 8, Y(t) + 4, fmt.axis(t, sc.step), { "font-size": 12, fill: T.muted, "text-anchor": "end" });
+      el("line", { x1: L, x2: R, y1: Y(t), y2: Y(t), stroke: t === 0 ? "#B9C3CC" : T.grid, "stroke-width": 1 }, g);
+      text(g, L - 8, Y(t) + 4, fmt.axis(t, sc.step), { "font-size": 11, fill: T.muted, "text-anchor": "end" });
     });
     // x labels, thinned
     const maxLabels = Math.max(2, Math.floor((R - L) / 64));
@@ -200,15 +205,15 @@
     m.times.forEach((t, i) => {
       if (i % every !== 0 && i !== n - 1) return;
       if (i !== n - 1 && n - 1 - i < every) return;
-      text(g, X(i), B + 20, t, { "font-size": 12, fill: T.muted, "text-anchor": "middle" });
+      text(g, X(i), B + 20, t, { "font-size": 11, fill: T.muted, "text-anchor": "middle" });
     });
     // projections: a pale band from the first projected period, labelled
     const fc = new Set((opts.forecast || []).filter(t => m.times.includes(t)));
     if (fc.size) {
       const first = m.times.findIndex(t => fc.has(t));
       const x0 = first > 0 ? (X(first - 1) + X(first)) / 2 : L;
-      el("rect", { x: x0, y: Tp, width: R - x0, height: B - Tp, fill: "#F1F5F8" }, gBand);
-      text(gBand, x0 + 6, Tp + 14, opts.lang === "en" ? "Projection" : "Napoved", { "font-size": 11, fill: T.muted, "font-weight": 700 });
+      el("rect", { x: x0, y: Tp, width: R - x0, height: B - Tp, fill: "#F2F4F6" }, gBand);
+      text(gBand, x0 + 6, Tp + 14, opts.lang === "en" ? "Projection" : "Napoved", { "font-size": 11, fill: T.muted });
     }
     // lines: context first, focus last
     const order = series.map((s, i) => i).sort((a, b) => (a === focusIdx) - (b === focusIdx));
@@ -225,7 +230,7 @@
         pen = true;
         last = { k, v };
       });
-      el("path", { d, fill: "none", stroke: color, "stroke-width": isFocus ? 2.5 : 1.6, "stroke-linejoin": "round", "stroke-linecap": "round", "data-series": i }, g);
+      el("path", { d, fill: "none", stroke: color, "stroke-width": isFocus ? 2 : 1.25, "stroke-linejoin": "round", "stroke-linecap": "round", "data-series": i }, g);
       // single points (isolated) get a dot so they don't vanish
       m.times.forEach((t, k) => {
         const v = s.points.get(t);
@@ -234,7 +239,7 @@
         if ((prev === null || prev === undefined) && (next === null || next === undefined)) el("circle", { cx: X(k), cy: Y(v), r: 3, fill: color }, g);
       });
       if (last) {
-        el("circle", { cx: X(last.k), cy: Y(last.v), r: isFocus ? 4 : 3, fill: color, stroke: "#fff", "stroke-width": 2 }, g);
+        el("circle", { cx: X(last.k), cy: Y(last.v), r: isFocus ? 3.5 : 2.5, fill: color, stroke: opts.bare ? "#FDFDFC" : "#fff", "stroke-width": 1.5 }, g);
         endLabels.push({ i, y: Y(last.v), x: X(last.k), v: last.v, label: s.label, color: isFocus ? T.ink : T.muted, weight: isFocus ? 700 : 400 });
       }
     });
@@ -248,7 +253,7 @@
     endLabels.forEach(e => {
       if (narrow && series.length > 1 && e.weight !== 700) return;   // on phones the legend names the series
       const lbl = series.length > 1 && !narrow ? `${fmt.value(e.v)}  ${trunc(e.label, Math.max(6, maxChars - fmt.value(e.v).length - 2))}` : fmt.value(e.v);
-      text(g, R + 10, e.y + 4, lbl, { "font-size": 12, fill: e.color, "font-weight": e.weight });
+      text(g, R + 10, e.y + 4, lbl, { "font-size": 11, fill: e.color, "font-weight": e.weight === 700 ? 500 : 400 });
     });
     // hover layer
     const hover = el("g", { "pointer-events": "none", style: "display:none", class: "isr-hover" }, svg);
@@ -270,16 +275,16 @@
     if (!vals.length) return;
     const sc = niceScale(Math.min.apply(null, vals), Math.max.apply(null, vals), 5, true);
     const catW = Math.min(260, Math.max(60, Math.max.apply(null, cats.map(cc => String(cc.label).length)) * 6.8 + 16));
-    const L = 24 + catW, R = W - 24 - 70, Tp = plotTop + (series.length > 1 ? 22 : 0), B = H - plotBottomPad;
+    const L = (opts.bare ? 0 : 24) + catW, R = W - (opts.bare ? 0 : 24) - 70, Tp = plotTop + (series.length > 1 && !opts.bare ? 22 : 0), B = H - plotBottomPad;
     const groupH = (B - Tp) / cats.length;
     const barH = Math.max(3, Math.min(26, (groupH - 6) / series.length - 2));
     const X = (v) => L + ((v - sc.lo) / (sc.hi - sc.lo)) * (R - L);
     const g = el("g", {}, svg);
     sc.ticks.forEach(t => {
-      el("line", { x1: X(t), x2: X(t), y1: Tp, y2: B, stroke: t === 0 ? "#9FB0BF" : T.grid }, g);
-      text(g, X(t), B + 18, fmt.axis(t, sc.step), { "font-size": 12, fill: T.muted, "text-anchor": "middle" });
+      el("line", { x1: X(t), x2: X(t), y1: Tp, y2: B, stroke: t === 0 ? "#B9C3CC" : T.grid }, g);
+      text(g, X(t), B + 18, fmt.axis(t, sc.step), { "font-size": 11, fill: T.muted, "text-anchor": "middle" });
     });
-    if (series.length > 1) {
+    if (series.length > 1 && !opts.bare) {
       let lx = L;
       series.forEach((s, i) => {
         const col = colorFor(i, series.length, opts.mode === "barvno" ? "barvno" : "isr-bars", focusIdx);
