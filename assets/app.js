@@ -45,7 +45,7 @@
       rules: "Pred objavo: zrcalne statistike se razlikujejo (izvoz A v B ni uvoz B iz A); neposredne naložbe so podatek centralnih bank; delnega leta ne primerjajte s celim; pri majhni osnovi navedite tudi absolutno vrednost.",
       aboutText: ["ISR Stat je vmesnik za uradne statistične API-je, s katerimi dela Inštitut za strateške rešitve (ISR). Brskalnik se z vsakim virom poveže neposredno; na strežniku se nič ne hrani.", "Teme in kazalniki so pripravljene poizvedbe. Pod Viri so vse tabele vseh virov, za tiste, ki iščejo nekaj posebnega.", "Isto kodo (assets/isrstat.js) uporablja Claude, ko za ISR pridobiva podatke, zato podatek v aplikaciji in podatek v Claudovem osnutku izhajata iz iste poizvedbe."],
       palHint: ["↑↓ izbira", "↵ odpre", "esc zapre"], inTime: "v Ljubljani",
-      cIntro: "Ključni podatki iz uradnih virov. Kliknite vrstico za graf in primerjavo s Slovenijo.", cNa: "ni podatka", cLoading: "nalagam",
+      cIntro: "Ključni podatki iz uradnih virov. Kliknite vrstico za graf in primerjavo s Slovenijo.", cNa: "ni podatka", cDown: "vir se ne odziva", cLoading: "nalagam",
       cNoteSI: "Pri Sloveniji niso prikazani kazalniki menjave in naložb s Slovenijo.", indCount: "{0} kazalnikov", libHint: "Pripravljene poizvedbe ureja ISR. Svoje shranite z gumbom Shrani pod tabelo.",
       ex: "Na primer", tableWord: "Tabela",
     },
@@ -76,7 +76,7 @@
       rules: "Before publishing: mirror statistics differ (A's exports to B are not B's imports from A); FDI comes from central banks; never compare a part-year with a full year; off a small base, give the absolute figure too.",
       aboutText: ["ISR Stat is a front end to the official statistics APIs the Institute for Strategic Solutions (ISR) works with. Your browser talks to each source directly; nothing is stored on a server.", "Topics and indicators are ready-made queries. Sources lists every table of every source, for when you need something specific.", "Claude uses the same code (assets/isrstat.js) when it pulls data for ISR, so a figure in the app and a figure in a Claude draft come from the same query."],
       palHint: ["↑↓ select", "↵ open", "esc close"], inTime: "in Ljubljana",
-      cIntro: "Key figures from official sources. Click a row for the chart and a comparison with Slovenia.", cNa: "no data", cLoading: "loading",
+      cIntro: "Key figures from official sources. Click a row for the chart and a comparison with Slovenia.", cNa: "no data", cDown: "source not responding", cLoading: "loading",
       cNoteSI: "Trade and investment with Slovenia are not shown for Slovenia itself.", indCount: "{0} indicators", libHint: "Ready-made queries are kept by ISR. Save your own with Save under a table.",
       ex: "Try", tableWord: "Table",
     },
@@ -271,10 +271,10 @@
     layout("", `
       <header class="hero"><h1 class="t">${esc(t("heroT"))}</h1><p class="sub">${esc(t("heroL"))}</p></header>
       <h2 class="sec">${esc(t("topics"))}</h2>
-      <div class="tgrid">${TOPICS.map(tp => `<a class="tcard" href="?v=topic&k=${tp.id}" data-nav><b>${esc(nm(tp.name))}</b><span>${esc(tp.items.slice(0, 3).map(k => nm(INDS[k].name)).join(", "))}</span></a>`).join("")}</div>
+      <div class="tgrid">${TOPICS.map(tp => `<a class="tcard" href="?v=topic&k=${tp.id}" data-nav><b>${esc(nm(tp.name))}</b><span>${esc(tp.items.slice(0, 3).map((k, i) => { const n = nm(INDS[k].name); return i && /^[A-ZČŠŽ][a-zčšž]/.test(n) ? n.charAt(0).toLowerCase() + n.slice(1) : n; }).join(", "))}</span></a>`).join("")}</div>
       <h2 class="sec">${esc(t("countries"))}</h2>
-      ${CPAGES.slice(0, 2).map(g => `<div class="clist"><span class="cg">${esc(nm(g.group))}</span>${g.list.map(c => `<a href="?v=country&c=${c}" data-nav>${esc(cName(c))}</a>`).join("")}</div>`).join("")}
-      <div class="clist"><span class="cg"></span><a href="?v=countries" data-nav class="more2">${esc(t("allCountries"))} ›</a></div>
+      ${CPAGES.slice(0, 2).map(g => `<div class="clist"><span class="cg">${esc(nm(g.group))}</span><span class="cl">${g.list.map(c => `<a href="?v=country&c=${c}" data-nav>${esc(cName(c))}</a>`).join("")}</span></div>`).join("")}
+      <div class="clist"><span class="cg"></span><span class="cl"><a href="?v=countries" data-nav class="more2">${esc(t("allCountries"))} ›</a></span></div>
       <div class="search"><input id="q" autocomplete="off" spellcheck="false" placeholder="${esc(t("searchPh"))}" value="${esc(q)}" aria-label="${esc(t("find"))}"><kbd>⌘K</kbd></div>
       <div class="hint" id="hint">${esc(t("ex"))} ${ex.map(x => `<button data-ex="${esc(x)}">${esc(x)}</button>`).join(", ")}</div>
       <div id="results"></div>
@@ -856,7 +856,7 @@
     if (kind === "idx") return nf(v, 2);
     if (kind === "rate") return nf(v, 4);
     if (kind === "ppp") return nf(Math.round(v)) + sp + (LANG === "en" ? "int. $" : "mednar. $");
-    if (kind === "mio") return nf(v, 2) + sp + (LANG === "en" ? "m" : "mio.");
+    if (kind === "mio") return nf(Math.abs(v) > 1000 ? v / 1e6 : v, 2) + sp + (LANG === "en" ? "m" : "mio.");
     if (kind === "eur") return Math.abs(v) >= 1e9 ? nf(v / 1e9, 2) + sp + (LANG === "en" ? "bn EUR" : "mrd. EUR") : nf(v / 1e6, 1) + sp + (LANG === "en" ? "m EUR" : "mio. EUR");
     if (kind === "meur") return Math.abs(v) >= 1000 ? nf(v / 1000, 2) + sp + (LANG === "en" ? "bn EUR" : "mrd. EUR") : nf(v, 1) + sp + (LANG === "en" ? "m EUR" : "mio. EUR");
     return nf(v);
@@ -900,7 +900,8 @@
   function setFig(x, value, period, points, err) {
     const a = $("#kf-" + x.id);
     if (!a) return;
-    $(".v", a).textContent = value === null || value === undefined ? (err ? "–" : t("cNa")) : fmtShow(x.show, value);
+    $(".v", a).textContent = value === null || value === undefined ? (err ? t("cDown") : t("cNa")) : fmtShow(x.show, value);
+    $(".v", a).classList.toggle("na", value === null || value === undefined);
     $(".p", a).textContent = period || "";
     $(".s", a).innerHTML = spark(points || []);
     if (err) a.title = err;

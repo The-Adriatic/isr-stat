@@ -123,7 +123,7 @@
       fixed: { INDICATOR: ["GGXCNL_NGDP"], FREQUENCY: ["A"] }, show: "pct", profile: true }),
 
     "prebivalstvo": Object.assign({}, WEO, {
-      name: { sl: "Število prebivalcev", en: "Population" }, unit: { sl: "milijoni", en: "millions" },
+      name: { sl: "Število prebivalcev", en: "Population" }, unit: { sl: "število oseb", en: "persons" },
       about: { sl: "Število prebivalcev po podatkih in ocenah IMF.", en: "Population (IMF)." },
       fixed: { INDICATOR: ["LP"], FREQUENCY: ["A"] }, show: "mio", profile: true }),
 
