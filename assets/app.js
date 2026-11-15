@@ -45,7 +45,7 @@
       rules: "Pred objavo: zrcalne statistike se razlikujejo (izvoz A v B ni uvoz B iz A); neposredne naložbe so podatek centralnih bank; delnega leta ne primerjajte s celim; pri majhni osnovi navedite tudi absolutno vrednost.",
       aboutText: ["ISR Stat je vmesnik za uradne statistične API-je, s katerimi dela Inštitut za strateške rešitve (ISR). Brskalnik se z vsakim virom poveže neposredno; na strežniku se nič ne hrani.", "Teme in kazalniki so pripravljene poizvedbe. Pod Viri so vse tabele vseh virov, za tiste, ki iščejo nekaj posebnega.", "Isto kodo (assets/isrstat.js) uporablja Claude, ko za ISR pridobiva podatke, zato podatek v aplikaciji in podatek v Claudovem osnutku izhajata iz iste poizvedbe."],
       palHint: ["↑↓ izbira", "↵ odpre", "esc zapre"], inTime: "v Ljubljani",
-      cIntro: "Ključni podatki iz uradnih virov. Kliknite vrstico za graf in primerjavo s Slovenijo.", cNa: "ni podatka", cDown: "vir se ne odziva", cLoading: "nalagam",
+      cIntro: "Ključni podatki iz uradnih virov. Kliknite vrstico za graf in primerjavo s Slovenijo.", cNa: "ni podatka", cDown: "vir se ne odziva", snap: "Svetovna banka se ni odzvala, zato so podatki iz kopije ISR z dne {0} (osvežuje se tedensko).", cLoading: "nalagam",
       cNoteSI: "Pri Sloveniji niso prikazani kazalniki menjave in naložb s Slovenijo.", indCount: "{0} kazalnikov", libHint: "Pripravljene poizvedbe ureja ISR. Svoje shranite z gumbom Shrani pod tabelo.",
       ex: "Na primer", tableWord: "Tabela",
     },
@@ -76,7 +76,7 @@
       rules: "Before publishing: mirror statistics differ (A's exports to B are not B's imports from A); FDI comes from central banks; never compare a part-year with a full year; off a small base, give the absolute figure too.",
       aboutText: ["ISR Stat is a front end to the official statistics APIs the Institute for Strategic Solutions (ISR) works with. Your browser talks to each source directly; nothing is stored on a server.", "Topics and indicators are ready-made queries. Sources lists every table of every source, for when you need something specific.", "Claude uses the same code (assets/isrstat.js) when it pulls data for ISR, so a figure in the app and a figure in a Claude draft come from the same query."],
       palHint: ["↑↓ select", "↵ open", "esc close"], inTime: "in Ljubljana",
-      cIntro: "Key figures from official sources. Click a row for the chart and a comparison with Slovenia.", cNa: "no data", cDown: "source not responding", cLoading: "loading",
+      cIntro: "Key figures from official sources. Click a row for the chart and a comparison with Slovenia.", cNa: "no data", cDown: "source not responding", snap: "The World Bank did not respond, so the data comes from ISR's copy of {0} (refreshed weekly).", cLoading: "loading",
       cNoteSI: "Trade and investment with Slovenia are not shown for Slovenia itself.", indCount: "{0} indicators", libHint: "Ready-made queries are kept by ISR. Save your own with Save under a table.",
       ex: "Try", tableWord: "Table",
     },
@@ -334,7 +334,7 @@
       <div class="result" id="result"></div>
       ${related.length ? `<h2 class="sec">${esc(t("related"))}</h2><ul class="rows two">${related.map(k => indRow(INDS[k])).join("")}</ul>` : ""}`);
     let m;
-    try { m = await S.meta(ind.source, ind.table, ind.lang); }
+    try { m = await S.meta(ind.source, ind.table, ind.lang, ind.structure ? { structure: resolveStructure(ind.structure) } : undefined); }
     catch (e) { $("#status").className = "status err"; $("#status").textContent = e.message; return; }
     if (st.ind !== ind) return;
     st.meta = m; st.table = m.table;
@@ -345,6 +345,9 @@
     $("#tmeta").innerHTML = `<span>${esc(nm(s.name))}</span><span>${esc(m.tableCode)}</span>${m.updated ? `<span>${esc(t("updated"))} ${esc(fmtDay(m.updated))}</span>` : ""}<span><a href="${esc(m.web)}" target="_blank" rel="noopener">${esc(t("atSource"))} ↗</a></span><span><a href="${esc(tableHref(ind.source, m.table, { l: ind.lang, ti: m.title }))}" data-nav>${esc(t("fullTable"))} ›</a></span>`;
     renderSel();
     pull();
+  }
+  function resolveStructure(sx) {
+    return { title: sx.title, dims: sx.dims.map(d => ({ id: d.id, label: d.label, role: d.role || null, required: false, values: d.values.map(v => ({ id: v.id, label: typeof v.label === "object" ? nm(v.label) : v.label })) })) };
   }
   function timeDim(m) { return m.dims.find(d => d.role === "time"); }
   function indDefaultSel(ind, m, cs) {
@@ -721,6 +724,7 @@
     if (r.partial && r.partial.length) nh += `<p class="note">${t("partial", esc(r.partial.join(", ")), esc(r.partial.map(x => String(r.periodLabels[x] || x).replace(/\s*\(.*\)\s*$/, "")).join(", ")))}</p>`;
     else if (r.provisional.length) nh += `<p class="note">${t("prov", esc(r.provisional.join(", ")))}</p>`;
     if (r.forecast.length) nh += `<p class="note">${t("fc", esc(r.forecast.length > 2 ? r.forecast[0] + "–" + r.forecast[r.forecast.length - 1] : r.forecast.join(", ")))}</p>`;
+    if (r.snapshot) nh += `<p class="note">${esc(t("snap", fmtDay(r.snapshot.pulledAt)))}</p>`;
     notes.innerHTML = nh;
     if (!st.chart.subtitle) st.chart.subtitle = p.fixedTxt.map(x => x[1]).join(", ");
     const fmt = valueFormatter(sr);

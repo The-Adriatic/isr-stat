@@ -133,7 +133,19 @@
       about: { sl: "Referenčni tečaj Evropske centralne banke. Za valute regije (dinar, marka, lek, denar) ECB tečaja ne objavlja.", en: "ECB reference rate. The ECB does not publish rates for the region's currencies." },
       fixed: { FREQ: ["M"], CURRENCY_DENOM: ["EUR"], EXR_TYPE: ["SP00"], EXR_SUFFIX: ["A"] },
       choices: { CURRENCY: { label: { sl: "Valuta", en: "Currency" }, default: ["USD"], options: ["USD", "CHF", "GBP", "JPY", "CNY", "HUF", "PLN", "CZK", "RON", "TRY", "SEK", "NOK"] } },
-      period: { from: "2015-01" }, show: "rate" },
+      period: { from: "2015-01" }, show: "rate",
+      // the ECB structure call is slow (half a megabyte); the few codes this view needs are known
+      structure: { title: "Exchange Rates", dims: [
+        { id: "FREQ", label: "Frequency", values: [{ id: "M", label: { sl: "mesečno", en: "Monthly" } }] },
+        { id: "CURRENCY", label: "Currency", values: [
+          { id: "USD", label: { sl: "ameriški dolar", en: "US dollar" } }, { id: "CHF", label: { sl: "švicarski frank", en: "Swiss franc" } }, { id: "GBP", label: { sl: "britanski funt", en: "Pound sterling" } },
+          { id: "JPY", label: { sl: "japonski jen", en: "Japanese yen" } }, { id: "CNY", label: { sl: "kitajski juan", en: "Chinese yuan renminbi" } }, { id: "HUF", label: { sl: "madžarski forint", en: "Hungarian forint" } },
+          { id: "PLN", label: { sl: "poljski zlot", en: "Polish zloty" } }, { id: "CZK", label: { sl: "češka krona", en: "Czech koruna" } }, { id: "RON", label: { sl: "romunski lev", en: "Romanian leu" } },
+          { id: "TRY", label: { sl: "turška lira", en: "Turkish lira" } }, { id: "SEK", label: { sl: "švedska krona", en: "Swedish krona" } }, { id: "NOK", label: { sl: "norveška krona", en: "Norwegian krone" } }] },
+        { id: "CURRENCY_DENOM", label: "Currency denominator", values: [{ id: "EUR", label: { sl: "evro", en: "Euro" } }] },
+        { id: "EXR_TYPE", label: "Exchange rate type", values: [{ id: "SP00", label: { sl: "referenčni tečaj", en: "Spot" } }] },
+        { id: "EXR_SUFFIX", label: "Series variation", values: [{ id: "A", label: { sl: "povprečje", en: "Average" } }] },
+        { id: "TIME_PERIOD", label: "Time period", role: "time", values: [] }] } },
 
     "wgi-korupcija": {
       source: "worldbank", table: "CC.EST", lang: "en", geo: "country", wbSource: "3",

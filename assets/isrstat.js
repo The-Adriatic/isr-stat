@@ -15,7 +15,7 @@
 (function (global) {
   "use strict";
 
-  const VERSION = "0.5.1";
+  const VERSION = "0.5.2";
   const CFG = { proxy: "", fetch: null, DOMParser: null, timeout: 90000, lang: "sl", walkDelay: 150 };
 
   /* ------------------------------------------------------------------ */
@@ -577,7 +577,7 @@
   function finishResult(o) {
     // o: { source, table, title, lang, dims, rows, updated, url, web, query, notes, flags, doi, unit }
     const src = SOURCES[o.source];
-    const pulledAt = new Date().toISOString();
+    const pulledAt = o.pulledAt || new Date().toISOString();
     const labels = {};
     o.dims.forEach(d => { labels[d.id] = {}; d.values.forEach(v => { labels[d.id][v.id] = v.label; }); });
     // keep only values present in rows, in the dimension's own order
@@ -643,6 +643,7 @@
       notes: o.notes || [],
       query: o.query,
       count: o.rows.length,
+      snapshot: o.snapshot || null,
     };
     res.citation = cite(res);
     return res;
@@ -956,8 +957,9 @@
       return parseFlows(xml, lang === "fr" ? "fr" : "en");
     },
     async search(src, q, lang) { return rankSearch(await cachedList(src.key, lang), q); },
-    async meta(src, id, lang) {
+    async meta(src, id, lang, opts) {
       const p = flowParts(id);
+      if (opts && opts.structure) return Object.assign({ source: src.key, table: `${p.agency},${p.id},${p.version}`, tableCode: p.id, lang: "en", url: `${src.api}/data/${p.agency},${p.id},${p.version}`, web: src.web(lang, id), updated: null, timeMode: "range", flags: {}, timeId: "TIME_PERIOD" }, opts.structure, { keyOrder: opts.structure.dims.filter(d => d.role !== "time").map(d => d.id) });
       const det = src.partial ? "&detail=referencepartial" : "";
       const url = `${src.api}/dataflow/${p.agency}/${p.id}/${p.version}?references=descendants${det}`;
       const xml = await request(url, { src, as: "text", timeout: 120000 });
@@ -1065,7 +1067,7 @@
       return {
         source: "ilo", table: id, tableCode: id, title: label, lang: "en",
         dims: [
-          { id: "ref_area", label: "Reference area", role: "geo", required: true, values: COUNTRIES.map(c => ({ id: c[1], label: c[3] })) },
+          { id: "ref_area", label: "Reference area", role: "geo", required: true, values: COUNTRIES.map(c => ({ id: c[0] === "XK" ? "KOS" : c[1], label: c[3] })) },
           { id: "time", label: "Time", role: "time", required: false, values: [] },
         ],
         url: `${src.api}/data/indicator/?id=${id}`, web: src.web(lang, id), updated: null, timeMode: "range",
@@ -1131,6 +1133,11 @@
   /* ------------------------------------------------------------------ */
 
   let WB_COUNTRIES = null;
+  let SNAPSHOT_BASE = "data";
+  async function wbSnapshot(id) {
+    const safe = String(id).replace(/[^A-Za-z0-9._-]/g, "_");
+    return request(`${SNAPSHOT_BASE.replace(/\/$/, "")}/worldbank/${safe}.json`, { timeout: 20000 });
+  }
   const worldbank = {
     async list(src) {
       const out = [];
@@ -1148,7 +1155,18 @@
       return WB_COUNTRIES;
     },
     async meta(src, id, lang) {
-      const [ind, ctys] = await Promise.all([request(`${src.api}/indicator/${encodeURIComponent(id)}?format=json`, { src }), this.countries(src)]);
+      let ind, ctys;
+      try { [ind, ctys] = await Promise.all([request(`${src.api}/indicator/${encodeURIComponent(id)}?format=json`, { src, timeout: 12000 }), this.countries(src)]); }
+      catch (e) {
+        // the World Bank API often refuses browsers; fall back to ISR's weekly copy
+        const snap = await wbSnapshot(id).catch(() => { throw e; });
+        const cmap = new Map(); snap.rows.forEach(r => cmap.set(r.c, r.n));
+        return {
+          source: "worldbank", table: id, tableCode: id, title: snap.title || id, lang: "en",
+          dims: [{ id: "country", label: "Country", role: "geo", required: true, values: Array.from(cmap, ([c, n]) => ({ id: c, label: n })).sort((a, b) => a.label.localeCompare(b.label)) }, { id: "time", label: "Year", role: "time", required: false, values: [] }],
+          url: `${src.api}/indicator/${id}`, web: src.web(lang, id), updated: snap.lastupdated || null, timeMode: "range", note: snap.note || "", sourceOrg: snap.sourceOrg || "", wbSource: snap.wbSource || null, snapshot: snap,
+        };
+      }
       const x = (ind[1] || [])[0] || {};
       const countries = ctys.filter(c => !c.aggregate).sort((a, b) => a.label.localeCompare(b.label)).concat(ctys.filter(c => c.aggregate).sort((a, b) => a.label.localeCompare(b.label)));
       return {
@@ -1171,7 +1189,10 @@
       const m = opts && opts.meta;
       if (m && m.wbSource && m.wbSource !== "2") params.push("source=" + m.wbSource);
       const url = `${src.api}/country/${ctys.map(encodeURIComponent).join(";")}/indicator/${encodeURIComponent(id)}?${params.join("&")}`;
-      const js = await request(url, { src, timeout: 120000 });
+      let js;
+      try { js = m && m.snapshot ? null : await request(url, { src, timeout: 25000 }); }
+      catch (e) { js = null; if (!(e.info && /NETWORK|TIMEOUT/.test(e.info.code))) throw e; }
+      if (!js) return this.fromSnapshot(src, id, sel, lang, (m && m.snapshot) || await wbSnapshot(id), url);
       if (!Array.isArray(js) || !js[1]) {
         const msg = js && js[0] && js[0].message ? js[0].message.map(x => x.value).join("; ") : "";
         throw new StatError("Za ta izbor ni podatkov." + (msg ? " (" + msg + ")" : ""), { code: "EMPTY", url });
@@ -1194,6 +1215,25 @@
       ];
       const title = (recs[0] && recs[0].indicator && recs[0].indicator.value) || (m && m.title) || id;
       return finishResult({ source: "worldbank", table: id, tableCode: id, title, lang: "en", dims, rows, updated: js[0] && js[0].lastupdated, url, web: src.web(lang, id), query: { source: "worldbank", table: id, sel, lang }, flags: {} });
+    },
+    fromSnapshot(src, id, sel, lang, snap, url) {
+      const ctys = Array.isArray(sel.country) ? sel.country : [];
+      const t = sel.time || {};
+      const from = t.from ? parseInt(t.from, 10) : -Infinity, to = t.to ? parseInt(t.to, 10) : Infinity;
+      let recs = snap.rows.filter(r => ctys.includes(r.c) && +r.t >= from && +r.t <= to && r.v !== null);
+      if (t.last) { const yrs = Array.from(new Set(recs.map(r => r.t))).sort().slice(-t.last); recs = recs.filter(r => yrs.includes(r.t)); }
+      if (!recs.length) throw new StatError("Za ta izbor ni podatkov.", { code: "EMPTY", url });
+      const names = new Map(recs.map(r => [r.c, r.n]));
+      const dims = [
+        { id: "country", label: "Country", role: "geo", values: ctys.filter(c => names.has(c)).map(c => ({ id: c, label: names.get(c) })) },
+        { id: "time", label: "Year", role: "time", values: sortTimes(Array.from(new Set(recs.map(r => r.t)))).map(x => ({ id: x, label: x })) },
+      ];
+      const rows = recs.map(r => ({ country: r.c, time: r.t, value: r.v }));
+      return finishResult({
+        source: "worldbank", table: id, tableCode: id, title: snap.title || id, lang: "en", dims, rows, updated: snap.lastupdated || null, url, web: src.web(lang, id),
+        query: { source: "worldbank", table: id, sel, lang }, flags: {}, pulledAt: snap.pulledAt,
+        notes: [`Svetovna banka se ni odzvala; podatki so iz kopije ISR z dne ${fmtDateSL(snap.pulledAt)}.`], snapshot: { pulledAt: snap.pulledAt },
+      });
     },
   };
 
@@ -1311,7 +1351,7 @@
   const META_CACHE = new Map();
   async function meta(key, id, lang, opts) {
     const s = src(key);
-    const ck = [key, id, lang || CFG.lang, (opts && opts.title) || ""].join("|");
+    const ck = [key, id, lang || CFG.lang, (opts && opts.title) || "", opts && opts.structure ? "static" : ""].join("|");
     if (META_CACHE.has(ck)) return META_CACHE.get(ck);
     const p = (async () => {
       const m = await adapter(key).meta(s, id, lang || CFG.lang, opts);
@@ -1364,7 +1404,7 @@
 
   const ISRStat = {
     VERSION, SOURCES, GROUPS, COUNTRIES, COUNTRY_GROUPS, StatError,
-    configure, setCatalogBase(u) { CATALOG_BASE = u; },
+    configure, setCatalogBase(u) { CATALOG_BASE = u; }, setSnapshotBase(u) { SNAPSHOT_BASE = u; },
     search, searchAll, browse, list, meta, query,
     toCSV, toTidy, fileStem, cite, countryCodesFor, estimateCells,
     util: { norm, parseCSV, sortTimes, timeKey, periodStart, fmtDateSL, fmtDateEN, isoDate, compactDate, fromJsonStat, parseStructure, parseFlows, rankSearch },
