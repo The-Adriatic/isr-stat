@@ -15,7 +15,7 @@
 (function (global) {
   "use strict";
 
-  const VERSION = "0.2.0";
+  const VERSION = "0.2.1";
   const CFG = { proxy: "", fetch: null, DOMParser: null, timeout: 90000, lang: "sl", walkDelay: 150 };
 
   /* ------------------------------------------------------------------ */
@@ -288,6 +288,11 @@
       r = await _fetch()(u, { method: opts.method || "GET", body: opts.body || undefined, headers: opts.headers || {}, signal: ctrl ? ctrl.signal : undefined });
     } catch (e) {
       const aborted = e && e.name === "AbortError";
+      if (!aborted && CFG.proxy && !opts._viaProxy && !(src && src.needsProxy) && /^https?:/.test(url)) {
+        // the source refused a direct browser call (often an error page without CORS headers): try the ISR proxy
+        if (timer) clearTimeout(timer);
+        return request(url, Object.assign({}, opts, { _viaProxy: true, src: Object.assign({}, src || { abbr: host(url) }, { needsProxy: true }) }));
+      }
       throw new StatError(aborted
         ? `Strežnik ${host(url)} se ni odzval v ${Math.round((opts.timeout || CFG.timeout) / 1000)} s.`
         : `Strežnik ${host(url)} ni vrnil berljivega odgovora: poizvedba je morda napačna ali prevelika, strežnik pa ob napaki ne dovoli branja iz brskalnika. Preverite izbor ali poskusite znova.`, { code: aborted ? "TIMEOUT" : "NETWORK", url, cause: e && e.message });
@@ -760,9 +765,16 @@
     },
     async search(src, q, lang) {
       lang = this.lang(src, lang);
+      // multi-database servers (DZS) rate-limit hard: use the catalogue when there is one
+      if (!src.db) {
+        const ck = src.key + ":" + lang;
+        const cat = CATALOG_CACHE[ck] || await loadCatalogFile(src.key, lang);
+        if (cat && cat.length) { CATALOG_CACHE[ck] = cat; return rankSearch(cat, q); }
+      }
       const dbs = src.db ? [this.dbFor(src, lang)] : (await this.browse(src, "", lang)).map(n => n.id);
       const out = [];
       for (const db of dbs) {
+        if (!src.db) await sleep(400);
         let hits = [];
         try { hits = await request(`${src.api}/${lang}/${db}?query=${encodeURIComponent(q)}`, { src }); } catch (e) { continue; }
         if (!hits.length && !/\*/.test(q)) {
