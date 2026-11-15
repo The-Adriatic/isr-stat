@@ -8,7 +8,7 @@
 
   const T = {
     navy: "#173049", deep: "#0F2236", steel: "#688FA9", sky: "#A8CBE2", pale: "#E6EEF4", lead: "#557C97",
-    context: "#C2CDD7", grid: "#ECEFF2", ink: "#0F2236", muted: "#8A96A3", surface: "#FFFFFF",
+    context: "#B3C0CC", grid: "#ECEFF2", ink: "#0F2236", muted: "#8A96A3", surface: "#FFFFFF",
   };
   // validated categorical palette (dataviz reference, light mode), fixed order
   const PALETTE = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#6250d6", "#e34948"];
@@ -152,7 +152,10 @@
     if (series.length > opts.maxSeries) { dropped = series.length - opts.maxSeries; series = series.slice(0, opts.maxSeries); }
     // default focus: Slovenia when it is one of many series, otherwise none (up to three) or the first
     const siIdx = series.findIndex(sr => /(^|¦)(SI|SVN)(¦|$)/.test(sr.key) || /^Sloven/i.test(sr.label));
-    const focusIdx = opts.focus === undefined || opts.focus === null ? (series.length <= 3 ? -1 : (siIdx >= 0 ? siIdx : 0)) : Math.min(opts.focus, series.length - 1);
+    // without Slovenia, lead with the series that ends highest
+    const lastVal = (sr) => { if (!sr.points) return -Infinity; const ts = m.times || []; for (let k = ts.length - 1; k >= 0; k--) { const v = sr.points.get(ts[k]); if (v !== null && v !== undefined && isFinite(v)) return v; } return -Infinity; };
+    const topIdx = series.reduce((best, sr, i) => (lastVal(sr) > lastVal(series[best]) ? i : best), 0);
+    const focusIdx = opts.focus === undefined || opts.focus === null ? (series.length <= 3 ? -1 : (siIdx >= 0 ? siIdx : topIdx)) : Math.min(opts.focus, series.length - 1);
 
     if (m.kind === "line") drawLines(svg, m, series, { W, H, plotTop, plotBottomPad, fmt, opts, focusIdx, info });
     else drawBars(svg, m, series, { W, H, plotTop, plotBottomPad, fmt, opts, focusIdx, info });
@@ -164,6 +167,7 @@
     info.skipped = m.skipped || [];
     container.appendChild(svg);
     info.series = series.map((s, i) => ({ key: s.key, label: s.label, color: colorFor(i, series.length, opts.mode, focusIdx) }));
+    info.focus = focusIdx;
     info.dropped = dropped;
     return info;
   }

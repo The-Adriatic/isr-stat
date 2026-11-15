@@ -100,7 +100,7 @@
     for (const [k, v] of Array.from(p.entries())) if (v === "" || v === "undefined") p.delete(k);
     return "?" + p.toString();
   }
-  function srcAbbr(k) { const s = srcOf(k); return s ? (LANG === "en" && s.abbrEn ? s.abbrEn : s.abbr) : k; }
+  function srcAbbr(k) { const s = srcOf(k); return s ? (s.short || (LANG === "en" && s.abbrEn ? s.abbrEn : s.abbr)) : k; }
 
   /* ---------------- routing ---------------- */
   const st = { meta: null, sel: {}, res: null, local: {}, open: null, token: 0, chart: { mode: "isr", focus: null, title: "", subtitle: "" }, stem: "", source: null, table: null, lang: null, title: null, forceBig: false };
@@ -662,7 +662,7 @@
     if (info.dropped) cap.push(LANG === "en" ? `${info.series.length} of ${info.series.length + info.dropped} series shown.` : `Prikazanih ${info.series.length} od ${info.series.length + info.dropped} serij.`);
     $("#capL").textContent = cap.join(" ");
     if (info.series.length > 1) {
-      lg.innerHTML = info.series.map((s, i) => `<button data-focus="${i}" class="${i === st.chart.focus ? "on" : ""}" title="${esc(s.label)}"><i style="background:${s.color}"></i>${esc(s.label || "–")}</button>`).join("");
+      lg.innerHTML = info.series.map((s, i) => `<button data-focus="${i}" class="${i === (st.chart.focus ?? info.focus) ? "on" : ""}" title="${esc(s.label)}"><i style="background:${s.color}"></i>${esc(s.label || "–")}</button>`).join("");
       $$("[data-focus]", lg).forEach(b => b.addEventListener("click", () => { const k = Number(b.dataset.focus); st.chart.focus = st.chart.focus === k ? null : k; drawChart(); }));
     } else lg.innerHTML = "";
   }

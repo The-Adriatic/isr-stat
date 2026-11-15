@@ -15,7 +15,7 @@
 (function (global) {
   "use strict";
 
-  const VERSION = "0.4.0";
+  const VERSION = "0.4.1";
   const CFG = { proxy: "", fetch: null, DOMParser: null, timeout: 90000, lang: "sl", walkDelay: 150 };
 
   /* ------------------------------------------------------------------ */
@@ -94,7 +94,7 @@
       type: "worldbank", group: "int", abbr: "Svetovna banka",
       name: { sl: "Svetovna banka", en: "World Bank" },
       inst: { sl: "World Bank", en: "World Bank" },
-      abbrEn: "World Bank",
+      abbrEn: "World Bank", short: "WB",
       about: { sl: "Kazalniki razvoja (WDI) in kazalniki upravljanja (WGI) za vse države.", en: "World Development Indicators and Worldwide Governance Indicators." },
       api: "https://api.worldbank.org/v2", langs: ["en"],
       wbSources: [["2", "WDI"], ["3", "WGI"]],
@@ -804,7 +804,7 @@
       const dims = m.variables.map(v => {
         const isTime = !!v.time;
         const key = normKey(v.code + " " + v.text);
-        const d = { id: v.code, label: v.text, role: null, required: !v.elimination, values: v.values.map((c, i) => ({ id: c, label: v.valueTexts[i] })) };
+        const d = { id: v.code, label: v.text, role: null, required: !v.elimination, values: v.values.map((c, i) => ({ id: c, label: stripCode(c, v.valueTexts[i]) })) };
         if (isTime) d.role = "time";
         else if (/(drzav|country|countries|geo|zemlj|teritorij|codeofbreakdown|kodaporazdelitve|partner)/.test(key) || (d.values.length >= 5 && countryCodesFor(d, ALL).length >= 4)) d.role = "geo";
         return d;
@@ -835,6 +835,7 @@
       });
       const js = await request(url, { src, method: "POST", body: JSON.stringify({ query, response: { format: "json-stat2" } }), headers: { "Content-Type": "application/json" } });
       const { dims, rows } = fromJsonStat(js);
+      dims.forEach(d => d.values.forEach(v => { v.label = stripCode(v.id, v.label); }));
       // carry roles from meta when available
       const m = opts && opts.meta;
       if (m) dims.forEach(d => { const md = m.dims.find(x => x.id === d.id); if (md && md.role) d.role = md.role; if (md && md.label) d.label = md.label; });
@@ -847,6 +848,12 @@
       });
     },
   };
+
+  // PxWeb labels often repeat the code in front ("XS Srbija", "00 Države - SKUPAJ")
+  function stripCode(code, label) {
+    const c = String(code), l = String(label == null ? c : label);
+    return l !== c && l.startsWith(c + " ") && l.length > c.length + 1 ? l.slice(c.length + 1) : l;
+  }
 
   function symbolFlags() {
     return { "..": "ni podatka", "...": "podatek ne obstaja", "-": "ni pojava", "z": "zaupno", "M": "manj zanesljiva ocena", "N": "premalo zanesljiva ocena" };
