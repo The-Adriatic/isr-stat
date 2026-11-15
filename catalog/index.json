@@ -1,0 +1,78 @@
+{
+  "sources": {
+    "surs.sl": {
+      "n": 4878,
+      "built": "2026-11-15T01:13:39.600Z",
+      "seconds": 4
+    },
+    "surs.en": {
+      "n": 4878,
+      "built": "2026-11-15T01:13:43.169Z",
+      "seconds": 4
+    },
+    "eurostat.en": {
+      "n": 8156,
+      "built": "2026-11-15T01:13:46.313Z",
+      "seconds": 3
+    },
+    "ecb.en": {
+      "n": 215,
+      "built": "2026-11-15T01:15:36.780Z",
+      "seconds": 110
+    },
+    "oecd.en": {
+      "n": 1553,
+      "built": "2026-11-15T01:15:36.998Z",
+      "seconds": 0
+    },
+    "imf.en": {
+      "n": 228,
+      "built": "2026-11-15T01:15:37.768Z",
+      "seconds": 1
+    },
+    "worldbank.en": {
+      "n": 1534,
+      "built": "2026-11-15T01:15:37.990Z",
+      "seconds": 0
+    },
+    "ilo.en": {
+      "n": 1964,
+      "built": "2026-11-15T01:15:39.378Z",
+      "seconds": 1
+    },
+    "bsi.sl": {
+      "n": 172,
+      "built": "2026-11-15T01:16:36.809Z",
+      "seconds": 57
+    },
+    "bsi.en": {
+      "n": 161,
+      "built": "2026-11-15T01:17:45.041Z",
+      "seconds": 68
+    },
+    "ask.en": {
+      "n": 1611,
+      "built": "2026-11-15T01:20:51.543Z",
+      "seconds": 187
+    },
+    "makstat.en": {
+      "error": "time budget exceeded",
+      "tried": "2026-11-15T01:29:51.547Z"
+    },
+    "makstat.mk": {
+      "error": "time budget exceeded",
+      "tried": "2026-11-15T01:38:51.554Z"
+    },
+    "dzs.hr": {
+      "n": 966,
+      "built": "2026-11-15T01:44:07.447Z",
+      "seconds": 316
+    },
+    "dzs.en": {
+      "n": 901,
+      "built": "2026-11-15T01:49:19.680Z",
+      "seconds": 312
+    }
+  },
+  "built": "2026-11-15T01:49:19.680Z"
+}
