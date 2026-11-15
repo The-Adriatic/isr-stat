@@ -192,7 +192,15 @@
     const main = $("#main");
     $("#gq").value = q;
     const my = ++searchToken;
-    const keys = Object.keys(S.SOURCES).filter(k => S.SOURCES[k].type !== "pending");
+    // multi-database PxWeb servers (DZS) throttle hard: in the all-sources search, use them only through their catalogue
+    let catIndex = {};
+    try { const r = await fetch((CONFIG.catalog || "catalog") + "/index.json", { cache: "no-cache" }); if (r.ok) catIndex = (await r.json()).sources || {}; } catch (_) { /* no catalogue yet */ }
+    const keys = Object.keys(S.SOURCES).filter(k => {
+      const s = S.SOURCES[k];
+      if (s.type === "pending") return false;
+      if (s.type === "pxweb" && !s.db) { const e = catIndex[`${k}.${dataLangFor(s)}`]; return !!(e && e.n); }
+      return true;
+    });
     const status = {};
     let hits = [];
     main.innerHTML = `<div class="kicker">${esc(t("results"))}</div><h1>»${esc(q)}«</h1><div class="progress" id="prog"></div><div class="filterbar" id="fbar"></div><div id="hits"></div><p class="small muted">${esc(t("catalogNote"))}</p>`;
