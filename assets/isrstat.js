@@ -15,7 +15,7 @@
 (function (global) {
   "use strict";
 
-  const VERSION = "0.2.2";
+  const VERSION = "0.2.3";
   const CFG = { proxy: "", fetch: null, DOMParser: null, timeout: 90000, lang: "sl", walkDelay: 150 };
 
   /* ------------------------------------------------------------------ */
@@ -1207,7 +1207,10 @@
     const ck = key + ":" + l;
     if (CATALOG_CACHE[ck]) return CATALOG_CACHE[ck];
     let items = await loadCatalogFile(key, l);
-    if (!items || !items.length) items = await adapter(key).list(s, l);
+    if (!items || !items.length) {
+      try { items = await adapter(key).list(s, l); }
+      catch (e) { if (e.info && (e.info.code === "NETWORK" || e.info.code === "TIMEOUT")) { await sleep(1500); items = await adapter(key).list(s, l); } else throw e; }
+    }
     CATALOG_CACHE[ck] = items;
     if (key === "ilo") CATALOG_CACHE.ilo = items;
     return items;
@@ -1261,7 +1264,9 @@
       let hits = [];
       try { hits = await a.search(s, q, a.lang(s, lang)); } catch (_) { /* ignore */ }
       if (!hits.length) { try { hits = rankSearch(await cachedList(key, lang), q); } catch (_) { /* ignore */ } }
-      return hits;
+      // server search is loose (any word); keep the hits that match every word when there are some
+      const strict = rankSearch(hits, q);
+      return strict.length ? strict : hits.map(h => Object.assign({}, h, { score: 0.5 }));
     }
     return a.search(s, q, lang);
   }

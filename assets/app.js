@@ -214,6 +214,11 @@
         let r;
         if (s.type === "pxweb" && !s.flat) r = await S.search(k, q, dataLangFor(s));
         else r = S.util.rankSearch(await S.list(k, dataLangFor(s)), q);
+        // Slovene-first sources: an English query should still find the table
+        if (!r.length && s.langs.includes("en") && dataLangFor(s) !== "en") {
+          r = s.type === "pxweb" && !s.flat ? await S.search(k, q, "en") : S.util.rankSearch(await S.list(k, "en"), q);
+          r = r.map(x => Object.assign({ lang: "en" }, x));
+        }
         r = r.slice(0, 80).map(x => Object.assign({ source: k }, x));
         status[k] = { n: r.length };
         hits = hits.concat(r);
@@ -224,7 +229,7 @@
 
   function resultItem(x) {
     const s = srcOf(x.source);
-    const href = `?v=table&s=${x.source}&t=${encodeURIComponent(x.id)}&ti=${encodeURIComponent(x.label || "")}`;
+    const href = `?v=table&s=${x.source}&t=${encodeURIComponent(x.id)}&ti=${encodeURIComponent(x.label || "")}${x.lang ? "&l=" + x.lang : ""}`;
     return `<li><a href="${href}" data-nav><span class="src">${esc(s.abbr)}</span><span>${esc(x.label)}</span><span class="code">${esc(x.code || x.id)}${x.updated ? " · " + esc(fmtUpd(x.updated)) : ""}</span></a></li>`;
   }
 
