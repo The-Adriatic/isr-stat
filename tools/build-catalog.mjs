@@ -15,17 +15,20 @@ S.configure({ DOMParser, timeout: 300000, walkDelay: 400 });
 const OUT = new URL("../catalog/", import.meta.url).pathname;
 mkdirSync(OUT, { recursive: true });
 
+// fast list endpoints first, tree walks (rate-limited PxWeb servers) last
 const JOBS = [
   ["surs", "sl"], ["surs", "en"],
-  ["bsi", "sl"], ["bsi", "en"],
   ["eurostat", "en"],
   ["ecb", "en"], ["oecd", "en"], ["imf", "en"],
   ["worldbank", "en"],
   ["ilo", "en"],
-  ["dzs", "hr"], ["dzs", "en"],
-  ["makstat", "en"], ["makstat", "mk"],
+  ["bsi", "sl"], ["bsi", "en"],
   ["ask", "en"],
+  ["makstat", "en"], ["makstat", "mk"],
+  ["dzs", "hr"], ["dzs", "en"],
 ];
+const BUDGET_MS = 9 * 60 * 1000;   // per source; a walk that runs over is recorded as failed
+const withBudget = (p) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error("time budget exceeded")), BUDGET_MS))]);
 
 const only = process.argv.slice(2);
 const index = existsSync(OUT + "index.json") ? JSON.parse(readFileSync(OUT + "index.json", "utf8")) : { sources: {} };
@@ -49,7 +52,7 @@ for (const [key, lang] of JOBS) {
   const t0 = Date.now();
   try {
     const src = S.SOURCES[key];
-    const items = key === "ilo" ? await iloList() : await S._internal[src.type].list(src, lang);
+    const items = await withBudget(key === "ilo" ? iloList() : S._internal[src.type].list(src, lang));
     const seen = new Set();
     const rows = [];
     items.forEach(x => {
@@ -68,3 +71,4 @@ for (const [key, lang] of JOBS) {
 }
 index.built = new Date().toISOString();
 writeFileSync(OUT + "index.json", JSON.stringify(index, null, 2));
+process.exit(0);
