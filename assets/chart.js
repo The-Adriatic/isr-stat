@@ -238,7 +238,8 @@
         endLabels.push({ i, y: Y(last.v), x: X(last.k), v: last.v, label: s.label, color: isFocus ? T.ink : T.muted, weight: isFocus ? 700 : 400 });
       }
     });
-    // end labels with collision avoidance
+    // end labels with collision avoidance (on phones only the focus keeps its label)
+    if (narrow && series.length > 1) { const keep = endLabels.filter(e => e.weight === 700); endLabels.length = 0; keep.forEach(e => endLabels.push(e)); }
     endLabels.sort((a, b) => a.y - b.y);
     const gap = 15;
     for (let k = 1; k < endLabels.length; k++) if (endLabels[k].y - endLabels[k - 1].y < gap) endLabels[k].y = endLabels[k - 1].y + gap;
