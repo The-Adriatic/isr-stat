@@ -608,12 +608,13 @@
   function renderChartPane(body, r) {
     const c = st.chart;
     const p = pivot(r);
-    if (!c.subtitle) c.subtitle = p.fixedTxt.map(x => x[1]).join(" · ") + (st.res.unit ? (p.fixedTxt.length ? " · " : "") + st.res.unit : "");
+    const unitTxt = st.res.unit && /[a-z]/.test(st.res.unit) ? st.res.unit : "";
+    if (!c.subtitle) c.subtitle = p.fixedTxt.map(x => x[1]).join(" · ") + (unitTxt ? (p.fixedTxt.length ? " · " : "") + unitTxt : "");
     body.innerHTML = `<div class="chartopts"><label>${esc(t("chartTitle"))}<input id="cTitle" value="${esc(c.title)}"></label><label>${esc(t("chartSub"))}<input id="cSub" value="${esc(c.subtitle)}"></label><div class="seg"><button data-mode="isr" class="${c.mode === "isr" ? "on" : ""}">${esc(t("modeIsr"))}</button><button data-mode="barvno" class="${c.mode === "barvno" ? "on" : ""}">${esc(t("modeColor"))}</button></div></div><div class="legend" id="legend"></div><div class="chartbox" id="chartBox"></div>`;
     const draw = () => {
       const box = $("#chartBox");
       if (!box) return;
-      const info = C.render(box, r, { mode: c.mode, focus: c.focus, lang: LANG, title: c.title, subtitle: c.subtitle, source: st.res.citation.figure, width: box.clientWidth - 8 });
+      const info = C.render(box, r, { mode: c.mode, focus: c.focus, lang: LANG, title: c.title, subtitle: c.subtitle, source: st.res.citation.figure, width: box.clientWidth - 8, forecast: st.res.forecast });
       st.chartInfo = info;
       C.wireHover(info, $("#tip"));
       const lg = $("#legend");

@@ -61,8 +61,7 @@
       if (i >= 0) dec = Math.max(dec, Math.min(3, s.length - i - 1));
     });
     const max = Math.max.apply(null, values.filter(v => v !== null && isFinite(v)).map(Math.abs).concat([0]));
-    if (max >= 1000) dec = Math.min(dec, 1);
-    if (max >= 100000) dec = 0;
+    if (max > 0) dec = Math.max(0, Math.min(dec, 2 - Math.floor(Math.log10(max))));
     const nf = new Intl.NumberFormat(lang === "en" ? "en-GB" : "sl-SI", { maximumFractionDigits: dec, minimumFractionDigits: 0 });
     const axis = (v, step) => {
       const d = step < 1 ? Math.min(3, Math.ceil(-Math.log10(step))) : 0;
@@ -188,6 +187,7 @@
     const X = (i) => L + (n === 1 ? (R - L) / 2 : (i * (R - L)) / (n - 1));
     const Y = (v) => B - ((v - sc.lo) / (sc.hi - sc.lo)) * (B - Tp);
     const g = el("g", {}, svg);
+    const gBand = el("g", {}, g);
     // grid + y labels
     sc.ticks.forEach(t => {
       el("line", { x1: L, x2: R, y1: Y(t), y2: Y(t), stroke: t === 0 ? "#9FB0BF" : T.grid, "stroke-width": 1 }, g);
@@ -201,8 +201,14 @@
       if (i !== n - 1 && n - 1 - i < every * 0.6) return;
       text(g, X(i), B + 20, t, { "font-size": 12, fill: T.muted, "text-anchor": "middle" });
     });
-    // forecast / provisional shading
-    const res = opts.result;
+    // projections: a pale band from the first projected period, labelled
+    const fc = new Set((opts.forecast || []).filter(t => m.times.includes(t)));
+    if (fc.size) {
+      const first = m.times.findIndex(t => fc.has(t));
+      const x0 = first > 0 ? (X(first - 1) + X(first)) / 2 : L;
+      el("rect", { x: x0, y: Tp, width: R - x0, height: B - Tp, fill: "#F1F5F8" }, gBand);
+      text(gBand, x0 + 6, Tp + 14, opts.lang === "en" ? "Projection" : "Napoved", { "font-size": 11, fill: T.muted, "font-weight": 700 });
+    }
     // lines: context first, focus last
     const order = series.map((s, i) => i).sort((a, b) => (a === focusIdx) - (b === focusIdx));
     const endLabels = [];
