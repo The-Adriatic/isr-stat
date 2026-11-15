@@ -305,12 +305,14 @@
 
   function selCount(d) {
     const s = st.sel[d.id];
+    if (s === "*") return d.values.length;
     if (Array.isArray(s)) return s.length;
     if (s && s.last) return Math.min(s.last, d.values.length || s.last);
     return 0;
   }
   function isChecked(d, code) {
     const s = st.sel[d.id];
+    if (s === "*") return true;
     if (Array.isArray(s)) return s.includes(code);
     if (s && s.last && d.role === "time") { const idx = d.values.findIndex(v => v.id === code); return idx >= d.values.length - s.last; }
     return false;
@@ -361,7 +363,16 @@
       body = `${n > 12 ? `<input class="filter" data-filter placeholder="${esc(t("filter"))}">` : ""}<div class="vals">${vals.slice(0, cap).map(v => `<label data-lbl="${esc(S.util.norm(v.label + " " + v.id))}"><input type="checkbox" value="${esc(v.id)}" ${isChecked(d, v.id) ? "checked" : ""}><span>${esc(v.label)}</span>${String(v.label) !== String(v.id) ? `<code>${esc(v.id)}</code>` : ""}</label>`).join("")}${n > cap ? `<div class="hint">${esc(t("showing", cap, n))}</div>` : ""}</div>`;
     }
     const countTxt = isTime && m.timeMode !== "list" ? "" : `${cnt || 0} / ${n}${!cnt && emptyMeaning ? ` · ${emptyMeaning}` : ""}`;
-    return `<section class="dim" data-dim="${esc(d.id)}"><header><div class="t"><b>${esc(d.label)}</b><span class="n" data-n>${esc(countTxt)}${d.required ? ` <span class="req">· ${esc(t("required"))}</span>` : ""}</span></div>${tools ? `<div class="tools">${tools}</div>` : ""}</header>${body}</section>`;
+    return `<section class="dim" data-dim="${esc(d.id)}"><header><div class="t"><b>${esc(d.label)}</b><span class="n" data-n>${esc(countTxt)}${d.required ? ` <span class="req">· ${esc(t("required"))}</span>` : ""}</span></div><div class="picked" data-picked>${esc(pickedTxt(d))}</div>${tools ? `<div class="tools">${tools}</div>` : ""}</header>${body}</section>`;
+  }
+
+  function pickedTxt(d) {
+    if (d.role === "time" && st.meta.timeMode !== "list") return "";
+    const s = st.sel[d.id];
+    if (!Array.isArray(s) || !s.length || s.length === d.values.length) return "";
+    const lab = new Map(d.values.map(v => [v.id, v.label]));
+    const names = s.slice(0, 4).map(c => lab.get(c) || c);
+    return names.join(", ") + (s.length > 4 ? ` +${s.length - 4}` : "");
   }
 
   function wireDims() {
@@ -375,6 +386,7 @@
         const emptyMeaning = s.type === "pxweb" ? (d.required ? "" : t("total")) : t("every");
         const nEl = $("[data-n]", card);
         if (nEl && !(d.role === "time" && st.meta.timeMode !== "list")) nEl.innerHTML = `${esc(`${cnt} / ${n}${!cnt && emptyMeaning ? ` · ${emptyMeaning}` : ""}`)}${d.required ? ` <span class="req">· ${esc(t("required"))}</span>` : ""}`;
+        const pk = $("[data-picked]", card); if (pk) pk.textContent = pickedTxt(d);
         updateEst();
       };
       card.addEventListener("change", (e) => {
@@ -460,7 +472,7 @@
     history.replaceState({}, "", "?" + new URLSearchParams({ v: "table", s: st.source, t: st.table, l: st.dataLang, ti: st.meta.title, sel: b64e(cleanSel()) }).toString());
     try {
       const res = await S.query(st.source, st.table, cleanSel(), st.dataLang, { meta: st.meta, title: st.meta.title });
-      st.res = res; st.filter = {}; st.chart = { mode: st.chart.mode, focus: 0, title: res.title, subtitle: "" };
+      st.res = res; st.filter = {}; st.chart = { mode: st.chart.mode, focus: null, title: res.title, subtitle: "" };
       st.tab = st.tab || "table";
       renderResult();
       window.ISR_LAST = res; // for Claude / console
@@ -547,7 +559,7 @@
         const on = $$("input:checked", card).map(i => i.value);
         const all = $$("input", card).length;
         st.filter[id] = on.length === all ? new Set() : new Set(on);
-        st.chart.focus = 0;
+        st.chart.focus = null;
         const sumOpen = true;
         renderPane();
         void sumOpen;
@@ -602,7 +614,7 @@
       const lg = $("#legend");
       if (info.series.length > 1) {
         lg.innerHTML = info.series.map((s, i) => `<button data-focus="${i}" class="${i === c.focus ? "on" : ""}" title="${esc(s.label)}"><span class="k" style="background:${s.color}"></span><em>${esc(s.label || "–")}</em></button>`).join("") + `<span class="small muted" style="align-self:center">${esc(t("focusHint"))}</span>`;
-        $$("[data-focus]", lg).forEach(b => b.addEventListener("click", () => { c.focus = Number(b.dataset.focus); draw(); }));
+        $$("[data-focus]", lg).forEach(b => b.addEventListener("click", () => { const k = Number(b.dataset.focus); c.focus = c.focus === k ? null : k; draw(); }));
       } else lg.innerHTML = "";
     };
     $("#cTitle").addEventListener("input", (e) => { c.title = e.target.value; draw(); });
@@ -696,8 +708,9 @@
 
   function libItem(x, i) {
     const s = srcOf(x.source) || { abbr: x.source };
-    return `<div class="item" data-lib="${x.shared ? "s" : "m"}:${x.shared ? esc(x.id) : i}"><span class="kicker">${esc(s.abbr)} · ${esc(String(x.table).split(/[/,]/).filter(Boolean).slice(-1)[0] || x.table)}</span><b>${esc(x.title)}</b>${x.note ? `<span class="muted">${esc(x.note)}</span>` : ""}<div class="row"><button class="btn sm" data-la="run">${esc(t("run"))}</button><button class="btn ghost sm" data-la="open">${esc(t("open"))}</button>${x.shared ? "" : `<button class="btn ghost sm" data-la="json">${esc(t("copyJson"))}</button><button class="btn ghost sm" data-la="del">${esc(t("del"))}</button>`}</div></div>`;
+    return `<div class="item" data-lib="${x.shared ? "s" : "m"}:${x.shared ? esc(x.id) : i}"><span class="kicker">${esc(s.abbr)} · ${esc(libCode(x))}</span><b>${esc(x.title)}</b>${x.note ? `<span class="muted">${esc(x.note)}</span>` : ""}<div class="row"><button class="btn sm" data-la="run">${esc(t("run"))}</button><button class="btn ghost sm" data-la="open">${esc(t("open"))}</button>${x.shared ? "" : `<button class="btn ghost sm" data-la="json">${esc(t("copyJson"))}</button><button class="btn ghost sm" data-la="del">${esc(t("del"))}</button>`}</div></div>`;
   }
+  function libCode(x) { const p = String(x.table).split(/[/]/).filter(Boolean).slice(-1)[0] || x.table; return /,/.test(p) ? p.split(",")[1] : p.replace(/\.px$/i, ""); }
   function wireLib(root) {
     $$("[data-lib]", root).forEach(el => {
       el.addEventListener("click", (e) => {

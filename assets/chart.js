@@ -44,6 +44,14 @@
     return { lo, hi, ticks, step };
   }
 
+  function scaleFor(values, lang) {
+    const max = Math.max.apply(null, values.filter(v => v !== null && isFinite(v)).map(Math.abs).concat([0]));
+    if (max >= 5e9) return { div: 1e9, tag: lang === "en" ? "bn" : "mrd." };
+    if (max >= 5e6) return { div: 1e6, tag: lang === "en" ? "m" : "mio." };
+    if (max >= 5e4 && max < 5e6 && values.every(v => v === null || !isFinite(v) || Math.abs(v - Math.round(v)) < 1e-9)) return { div: 1e3, tag: lang === "en" ? "thousand" : "tisoč" };
+    return { div: 1, tag: "" };
+  }
+
   function makeFormat(lang, values) {
     let dec = 0;
     values.forEach(v => {
@@ -69,7 +77,8 @@
     const tId = res.timeDim;
     const dims = res.dims;
     const varying = dims.filter(d => d.id !== tId && new Set(rows.map(r => r[d.id])).size > 1);
-    const times = tId ? res.dims.find(d => d.id === tId).values.map(v => v.id).filter(t => rows.some(r => r[tId] === t)) : [];
+    const skip = new Set(opts.showPartial ? [] : (res.partial || []));
+    const times = tId ? res.dims.find(d => d.id === tId).values.map(v => v.id).filter(t => !skip.has(t) && rows.some(r => r[tId] === t)) : [];
     const lab = (d, c) => (res.labels[d] && res.labels[d][c] != null ? res.labels[d][c] : c);
     const keyOf = (r) => varying.map(d => r[d.id]).join("¦");
     const labelOf = (r) => varying.map(d => lab(d.id, r[d.id])).join(" · ");
@@ -80,7 +89,7 @@
         if (!series.has(k)) series.set(k, { key: k, label: labelOf(r) || res.title, points: new Map() });
         series.get(k).points.set(r[tId], r.value);
       });
-      return { kind: "line", times, series: Array.from(series.values()), varying };
+      return { kind: "line", times, series: Array.from(series.values()), varying, skipped: Array.from(skip).filter(t => rows.some(r => r[tId] === t)) };
     }
     // bars: category = the varying dim with most values; series = the rest
     const sorted = varying.slice().sort((a, b) => new Set(rows.map(r => r[b.id])).size - new Set(rows.map(r => r[a.id])).size);
@@ -97,9 +106,11 @@
     return { kind: "bar", cats: Array.from(cats, ([id, label]) => ({ id, label })), series: Array.from(series.values()), cat, rest, period: times[0] || (tId && rows[0] ? rows[0][tId] : null) };
   }
 
+  const TRIO = ["#173049", "#688FA9", "#A3BCD0"];
   function colorFor(i, n, mode, focusIdx) {
     if (mode === "barvno") return PALETTE[i % PALETTE.length];
     if (n === 1) return T.navy;
+    if (focusIdx < 0) return n <= 3 ? TRIO[i] : (i === 0 ? T.navy : T.context);
     return i === focusIdx ? T.navy : T.context;
   }
 
@@ -110,8 +121,16 @@
     const m = model(res, opts);
     const W = Math.max(320, Math.round(opts.width || container.clientWidth || 860));
     const H = opts.height;
-    const allVals = m.kind === "line" ? m.series.flatMap(s => Array.from(s.points.values())) : m.series.flatMap(s => Array.from(s.values.values()));
-    const fmt = makeFormat(opts.lang, allVals);
+    let allVals = m.kind === "line" ? m.series.flatMap(s => Array.from(s.points.values())) : m.series.flatMap(s => Array.from(s.values.values()));
+    const sc0 = opts.noScale ? { div: 1, tag: "" } : scaleFor(allVals, opts.lang);
+    if (sc0.div !== 1) {
+      const f = (v) => (v === null || v === undefined || !isFinite(v) ? v : v / sc0.div);
+      if (m.kind === "line") m.series.forEach(s => { s.points.forEach((v, k) => s.points.set(k, f(v))); });
+      else m.series.forEach(s => { s.values.forEach((v, k) => s.values.set(k, f(v))); });
+      allVals = allVals.map(f);
+    }
+    const fmt = makeFormat(opts.lang, allVals.map(v => (v === null || v === undefined || !isFinite(v) ? v : Math.round(v * 1000) / 1000)));
+    const subtitle = [opts.subtitle, sc0.tag ? (opts.lang === "en" ? `in ${sc0.tag}` : `v ${sc0.tag}`) : ""].filter(Boolean).join(" · ");
     const svg = el("svg", { xmlns: NS, viewBox: `0 0 ${W} ${H}`, width: W, height: H, role: "img", "aria-label": opts.title, style: "display:block;max-width:100%;height:auto;background:#fff" });
     el("rect", { x: 0, y: 0, width: W, height: H, fill: T.surface }, svg);
     // titles
@@ -120,7 +139,7 @@
     const titleLines = wrap(opts.title || "", Math.floor((W - 48) / 10.5));
     titleLines.slice(0, 2).forEach((ln, i) => text(svg, pad.l, y + i * 26, ln, { "font-size": 20, "font-weight": 700, fill: T.ink }));
     y += (Math.min(2, titleLines.length) - 1) * 26;
-    if (opts.subtitle) { y += 24; text(svg, pad.l, y, trunc(opts.subtitle, Math.floor((W - 48) / 7.2)), { "font-size": 14, "font-weight": 300, fill: T.muted }); }
+    if (subtitle) { y += 24; text(svg, pad.l, y, trunc(subtitle, Math.floor((W - 48) / 7.2)), { "font-size": 14, "font-weight": 300, fill: T.muted }); }
     const plotTop = y + 30;
     const plotBottomPad = 52;
     const info = { svg, model: m, fmt, series: [] };
@@ -128,13 +147,14 @@
     let series = m.series;
     let dropped = 0;
     if (series.length > opts.maxSeries) { dropped = series.length - opts.maxSeries; series = series.slice(0, opts.maxSeries); }
-    const focusIdx = Math.min(opts.focus || 0, series.length - 1);
+    const focusIdx = opts.focus === undefined || opts.focus === null ? (series.length <= 3 ? -1 : 0) : Math.min(opts.focus, series.length - 1);
 
     if (m.kind === "line") drawLines(svg, m, series, { W, H, plotTop, plotBottomPad, fmt, opts, focusIdx, info });
     else drawBars(svg, m, series, { W, H, plotTop, plotBottomPad, fmt, opts, focusIdx, info });
 
     // source line
-    const foot = [opts.source, dropped ? (opts.lang === "en" ? `Showing ${series.length} of ${series.length + dropped} series.` : `Prikazanih ${series.length} od ${series.length + dropped} serij.`) : ""].filter(Boolean).join("  ");
+    const skippedTxt = m.skipped && m.skipped.length ? (opts.lang === "en" ? `Part-year ${m.skipped.join(", ")} not shown.` : `Delno leto ${m.skipped.join(", ")} ni prikazano.`) : "";
+    const foot = [opts.source, skippedTxt, dropped ? (opts.lang === "en" ? `Showing ${series.length} of ${series.length + dropped} series.` : `Prikazanih ${series.length} od ${series.length + dropped} serij.`) : ""].filter(Boolean).join("  ");
     text(svg, pad.l, H - 18, foot, { "font-size": 12, fill: T.muted });
     container.appendChild(svg);
     info.series = series.map((s, i) => ({ key: s.key, label: s.label, color: colorFor(i, series.length, opts.mode, focusIdx) }));
@@ -187,7 +207,7 @@
     order.forEach(i => {
       const s = series[i];
       const color = colorFor(i, series.length, opts.mode, focusIdx);
-      const isFocus = series.length === 1 || i === focusIdx || opts.mode === "barvno";
+      const isFocus = series.length === 1 || i === focusIdx || opts.mode === "barvno" || (focusIdx < 0 && series.length <= 3);
       let d = "", pen = false, last = null;
       m.times.forEach((t, k) => {
         const v = s.points.get(t);
