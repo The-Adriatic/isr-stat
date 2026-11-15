@@ -80,7 +80,7 @@
     const times = tId ? res.dims.find(d => d.id === tId).values.map(v => v.id).filter(t => !skip.has(t) && rows.some(r => r[tId] === t)) : [];
     const lab = (d, c) => (res.labels[d] && res.labels[d][c] != null ? res.labels[d][c] : c);
     const keyOf = (r) => varying.map(d => r[d.id]).join("¦");
-    const labelOf = (r) => varying.map(d => lab(d.id, r[d.id])).join(" · ");
+    const labelOf = (r) => varying.map(d => lab(d.id, r[d.id])).join(", ");
     if (tId && times.length > 1) {
       const series = new Map();
       rows.forEach(r => {
@@ -99,7 +99,7 @@
       const ck = cat ? r[cat.id] : "_";
       if (!cats.has(ck)) cats.set(ck, cat ? lab(cat.id, ck) : res.title);
       const sk = rest.map(d => r[d.id]).join("¦");
-      if (!series.has(sk)) series.set(sk, { key: sk, label: rest.map(d => lab(d.id, r[d.id])).join(" · ") || "", values: new Map() });
+      if (!series.has(sk)) series.set(sk, { key: sk, label: rest.map(d => lab(d.id, r[d.id])).join(", ") || "", values: new Map() });
       series.get(sk).values.set(ck, r.value);
     });
     return { kind: "bar", cats: Array.from(cats, ([id, label]) => ({ id, label })), series: Array.from(series.values()), cat, rest, period: times[0] || (tId && rows[0] ? rows[0][tId] : null) };
@@ -129,7 +129,7 @@
       allVals = allVals.map(f);
     }
     const fmt = makeFormat(opts.lang, allVals.map(v => (v === null || v === undefined || !isFinite(v) ? v : Math.round(v * 1000) / 1000)));
-    const subtitle = [opts.subtitle, sc0.tag ? (opts.lang === "en" ? `in ${sc0.tag}` : `v ${sc0.tag}`) : ""].filter(Boolean).join(" · ");
+    const subtitle = [opts.subtitle, sc0.tag ? (opts.lang === "en" ? `in ${sc0.tag}` : `v ${sc0.tag}`) : ""].filter(Boolean).join(", ");
     const svg = el("svg", { xmlns: NS, viewBox: `0 0 ${W} ${H}`, width: W, height: H, role: "img", "aria-label": opts.title, style: "display:block;max-width:100%;height:auto" });
     const pad = { l: opts.bare ? 0 : 24, r: 24, t: 24 };
     let plotTop, plotBottomPad;

@@ -41,7 +41,7 @@
       about: "O orodju", lang: "English", github: "Koda", err: "Napaka",
       rules: "Pred objavo: zrcalne statistike se razlikujejo (izvoz A v B ni uvoz B iz A); neposredne naložbe so podatek centralnih bank; delnega leta ne primerjajte s celim; pri majhni osnovi navedite tudi absolutno vrednost.",
       aboutText: ["ISR Stat je vmesnik za uradne statistične API-je, s katerimi dela Inštitut za strateške rešitve (ISR). Brskalnik se z vsakim virom poveže neposredno; na strežniku se nič ne hrani.", "Isto kodo (assets/isrstat.js) uporablja Claude, ko za ISR pridobiva podatke, zato podatek v aplikaciji in podatek v Claudovem osnutku izhajata iz iste poizvedbe."],
-      palHint: "↑↓ izbira · ↵ odpre · esc zapre", inTime: "v Ljubljani",
+      palHint: ["↑↓ izbira", "↵ odpre", "esc zapre"], inTime: "v Ljubljani",
     },
     en: {
       app: "Statistics", inst: "Institute for Strategic Solutions (ISR)",
@@ -68,7 +68,7 @@
       about: "About", lang: "Slovenščina", github: "Code", err: "Error",
       rules: "Before publishing: mirror statistics differ (A's exports to B are not B's imports from A); FDI comes from central banks; never compare a part-year with a full year; off a small base, give the absolute figure too.",
       aboutText: ["ISR Stat is a front end to the official statistics APIs the Institute for Strategic Solutions (ISR) works with. Your browser talks to each source directly; nothing is stored on a server.", "Claude uses the same code (assets/isrstat.js) when it pulls data for ISR, so a figure in the app and a figure in a Claude draft come from the same query."],
-      palHint: "↑↓ select · ↵ open · esc close", inTime: "in Ljubljana",
+      palHint: ["↑↓ select", "↵ open", "esc close"], inTime: "in Ljubljana",
     },
   };
   let LANG = store.get("isrstat.lang") || "sl";
@@ -285,7 +285,7 @@
       prog.textContent = label || "";
       box.innerHTML = items.length ? `<ul class="rows">${items.slice(0, 400).map(x => x.type === "folder"
         ? `<li><a href="?v=source&s=${key}&p=${encodeURIComponent(x.id)}" data-nav><span class="l"></span><span class="m folder">${esc(x.label)}</span><span class="r"></span></a></li>`
-        : `<li>${hitRow(Object.assign({ source: key }, x)).replace(`<span class="r">`, `<span class="r">${x.updated ? esc(fmtDay(x.updated)) + " · " : ""}`)}</li>`).join("")}</ul>` : `<p class="empty">${esc(t("none"))}</p>`;
+        : `<li>${hitRow(Object.assign({ source: key }, x)).replace(`<span class="r">`, `<span class="r">${x.updated ? `<span class="d">${esc(fmtDay(x.updated))}</span>` : ""}`)}</li>`).join("")}</ul>` : `<p class="empty">${esc(t("none"))}</p>`;
     };
     const load = async (qq) => {
       prog.innerHTML = `<span class="spin"></span>${esc(t("searching"))} …`;
@@ -294,7 +294,7 @@
         else if (s.type === "pxweb" && !s.flat) show(await S.browse(key, path, lang));
         else {
           const all = await S.list(key, lang);
-          show(all.slice().sort((a, b) => String(b.updated || "").localeCompare(String(a.updated || ""))).slice(0, 150), `${t("recent")} · ${t("count", nf(all.length))}`);
+          show(all.slice().sort((a, b) => String(b.updated || "").localeCompare(String(a.updated || ""))).slice(0, 150), `${t("recent")}, ${t("count", nf(all.length))}`);
         }
       } catch (e) { prog.textContent = ""; box.innerHTML = `<p class="status err">${esc(e.message)}</p>`; }
     };
@@ -323,8 +323,8 @@
     st.meta = m;
     st.sel = sel || defaultSel(m, s);
     $("#ttl").textContent = m.title;
-    const langs = s.langs.length > 1 ? " · " + s.langs.map(l => l === lang ? `<span>${l.toUpperCase()}</span>` : `<a href="${esc(tableHref(key, id, { l, ti: title || "" }))}" data-nav>${l.toUpperCase()}</a>`).join(" ") : "";
-    $("#tmeta").innerHTML = `${esc(nm(s.name))} · ${esc(m.tableCode)}${m.updated ? " · " + esc(t("updated")) + " " + esc(fmtDay(m.updated)) : ""} · <a href="${esc(m.web)}" target="_blank" rel="noopener">${esc(t("atSource"))} ↗</a>${langs}`;
+    const langs = s.langs.length > 1 ? `<span>${s.langs.map(l => l === lang ? `<span>${l.toUpperCase()}</span>` : `<a href="${esc(tableHref(key, id, { l, ti: title || "" }))}" data-nav>${l.toUpperCase()}</a>`).join(" ")}</span>` : "";
+    $("#tmeta").innerHTML = `<span>${esc(nm(s.name))}</span><span>${esc(m.tableCode)}</span>${m.updated ? `<span>${esc(t("updated"))} ${esc(fmtDay(m.updated))}</span>` : ""}<span><a href="${esc(m.web)}" target="_blank" rel="noopener">${esc(t("atSource"))} ↗</a></span>${langs}`;
     renderSel();
     pull();
   }
@@ -626,14 +626,14 @@
     if (r.forecast.length) nh += `<p class="note">${t("fc", esc(r.forecast.length > 2 ? r.forecast[0] + "–" + r.forecast[r.forecast.length - 1] : r.forecast.join(", ")))}</p>`;
     notes.innerHTML = nh;
     // subtitle: what is fixed in the selection
-    if (!st.chart.subtitle) st.chart.subtitle = p.fixedTxt.map(x => x[1]).join(" · ");
+    if (!st.chart.subtitle) st.chart.subtitle = p.fixedTxt.map(x => x[1]).join(", ");
     const fmt = valueFormatter(sr);
     const prov = new Set(r.provisional), fc = new Set(r.forecast), pl = r.periodLabels || {};
     const cap = 1000;
     const tableHTML = `<div class="tbl wide"><table class="data"><thead><tr>${(p.head.length ? p.head : [""]).map(x => `<th>${esc(x)}</th>`).join("")}${p.times.map(tt => `<th title="${esc(pl[tt] || "")}">${esc(tt)}${pl[tt] || prov.has(tt) || fc.has(tt) ? "*" : ""}</th>`).join("")}</tr></thead><tbody>${p.body.slice(0, cap).map(b => `<tr>${(b.labels.length ? b.labels : [st.chart.title]).map(l => `<td class="lab">${esc(l)}</td>`).join("")}${b.vals.map((v, i) => `<td>${v === null || v === undefined ? `<span class="x">–</span>` : esc(fmt(v))}${b.st[i] ? `<sup title="${esc(r.flags[b.st[i]] || b.st[i])}">${esc(b.st[i])}</sup>` : ""}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
     const starred = p.times.filter(tt => pl[tt] || prov.has(tt) || fc.has(tt));
     const usedFlags = Array.from(new Set(sr.rows.map(x => x.status).filter(Boolean)));
-    const tnote = [p.body.length > cap ? t("rows", nf(cap), nf(p.body.length)) : "", starred.length ? starred.map(tt => `* ${tt}: ${pl[tt] || (fc.has(tt) ? (LANG === "en" ? "projection" : "napoved") : (LANG === "en" ? "provisional" : "začasno"))}`).join(" · ") : "", usedFlags.length ? usedFlags.map(s => `${s} = ${r.flags[s] || ""}`).join(" · ") : ""].filter(Boolean).join(" · ");
+    const tnote = [p.body.length > cap ? t("rows", nf(cap), nf(p.body.length)) : "", starred.length ? starred.map(tt => `* ${tt}: ${pl[tt] || (fc.has(tt) ? (LANG === "en" ? "projection" : "napoved") : (LANG === "en" ? "provisional" : "začasno"))}`).join("; ") : "", usedFlags.length ? usedFlags.map(s => `${s} = ${r.flags[s] || ""}`).join("; ") : ""].filter(Boolean);
     const c = r.citation;
     const cites = [[t("citeFdv"), c.fdv], [t("citeText"), c.inText], [t("citeFig"), c.figure], [t("citeApa"), c.apa]];
     const call = `await ISRStat.query(${JSON.stringify(r.source)}, ${JSON.stringify(r.table)}, ${JSON.stringify(r.query.sel)}, ${JSON.stringify(r.query.lang)})`;
@@ -641,12 +641,12 @@
       <div class="ctitle"><span class="t1" contenteditable="true" spellcheck="false" id="cT">${esc(st.chart.title)}</span><span class="t2" contenteditable="true" spellcheck="false" id="cS">${esc(st.chart.subtitle)}</span></div>
       <div class="legend" id="legend"></div>
       <div class="chart wide" id="chartBox"></div>
-      <div class="caption wide"><span id="capL">${esc(c.figure)}</span><span><button data-mode="isr" class="${st.chart.mode === "isr" ? "on" : ""}">${esc(t("isr"))}</button> · <button data-mode="barvno" class="${st.chart.mode === "barvno" ? "on" : ""}">${esc(t("color"))}</button></span></div>
+      <div class="caption wide"><span id="capL">${esc(c.figure)}</span><span><button data-mode="isr" class="${st.chart.mode === "isr" ? "on" : ""}">${esc(t("isr"))}</button><button data-mode="barvno" class="${st.chart.mode === "barvno" ? "on" : ""}">${esc(t("color"))}</button></span></div>
       ${tableHTML}
-      ${tnote ? `<p class="tnote wide">${esc(tnote)}</p>` : ""}
+      ${tnote.map(x => `<p class="tnote wide">${esc(x)}</p>`).join("")}
       <h2 class="sec">${esc(t("cite"))}</h2>
       <dl class="kv">${cites.map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${esc(v)}</dd><button class="cp" data-cp="${esc(v)}">${esc(t("copy"))}</button></div>`).join("")}
-        <div><dt>${esc(t("pulled"))}</dt><dd>${esc(fmtDay(r.pulledAt))}, ${esc(new Date(r.pulledAt).toTimeString().slice(0, 5))}${r.updated ? ` · ${esc(t("updated"))} ${esc(fmtDay(r.updated))}` : ""}</dd><span></span></div></dl>
+        <div><dt>${esc(t("pulled"))}</dt><dd>${esc(fmtDay(r.pulledAt))}, ${esc(new Date(r.pulledAt).toTimeString().slice(0, 5))}${r.updated ? `, ${esc(t("updated"))} ${esc(fmtDay(r.updated))}` : ""}</dd><span></span></div></dl>
       <div class="actions"><span class="sub">${esc(t("dl"))}</span><button data-x="csv">${esc(t("csv"))}</button><button data-x="xlsx">${esc(t("xlsx"))}</button><button data-x="svg">${esc(t("svg"))}</button><button data-x="png">${esc(t("png"))}</button><button data-x="copy">${esc(t("copyTable"))}</button><button data-x="link">${esc(t("link"))}</button><button data-x="save">${esc(t("save"))}</button></div>
       <div id="saveBox"></div>
       <p class="tnote" style="margin-top:1.5rem">${esc(t("rules"))}</p>
@@ -715,7 +715,7 @@
     const p = pivot(r);
     const aoa = [];
     aoa.push([st.chart.title || st.res.title]);
-    if (p.fixedTxt.length) aoa.push([p.fixedTxt.map(([a, b]) => `${a}: ${b}`).join(" · ")]);
+    if (p.fixedTxt.length) aoa.push([p.fixedTxt.map(([a, b]) => `${a}: ${b}`).join("; ")]);
     aoa.push([]);
     aoa.push(p.head.concat(p.times));
     p.body.forEach(b => aoa.push(b.labels.concat(b.vals.map(v => (v === null || v === undefined ? null : v)))));
@@ -767,7 +767,7 @@
     const pal = $("#pal");
     if (pal.classList.contains("open")) return;
     pal.classList.add("open");
-    pal.innerHTML = `<div class="box" role="dialog" aria-label="${esc(t("searchPh"))}"><input id="palQ" autocomplete="off" spellcheck="false" placeholder="${esc(t("searchPh"))}"><div class="list" id="palL"></div><div class="foot2"><span id="palP"></span><span>${esc(t("palHint"))}</span></div></div>`;
+    pal.innerHTML = `<div class="box" role="dialog" aria-label="${esc(t("searchPh"))}"><input id="palQ" autocomplete="off" spellcheck="false" placeholder="${esc(t("searchPh"))}"><div class="list" id="palL"></div><div class="foot2"><span id="palP"></span><span class="keys">${I[LANG].palHint.map(x => `<span>${esc(x)}</span>`).join("")}</span></div></div>`;
     const q = $("#palQ"), list = $("#palL"), prog = $("#palP");
     let kb = 0, cur = [];
     const lib = (SHARED || []).slice(0, 6).map(x => ({ source: x.source, id: x.table, label: x.title, code: libCode(x), lib: x }));
