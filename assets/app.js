@@ -45,7 +45,7 @@
       rules: "Pred objavo: zrcalne statistike se razlikujejo (izvoz A v B ni uvoz B iz A); neposredne naložbe so podatek centralnih bank; delnega leta ne primerjajte s celim; pri majhni osnovi navedite tudi absolutno vrednost.",
       aboutText: ["ISR Stat je vmesnik za uradne statistične API-je, s katerimi dela Inštitut za strateške rešitve (ISR). Brskalnik se z vsakim virom poveže neposredno; na strežniku se nič ne hrani.", "Teme in kazalniki so pripravljene poizvedbe. Pod Viri so vse tabele vseh virov, za tiste, ki iščejo nekaj posebnega.", "Isto kodo (assets/isrstat.js) uporablja Claude, ko za ISR pridobiva podatke, zato podatek v aplikaciji in podatek v Claudovem osnutku izhajata iz iste poizvedbe."],
       palHint: ["↑↓ izbira", "↵ odpre", "esc zapre"], inTime: "v Ljubljani",
-      cIntro: "Ključni podatki iz uradnih virov. Kliknite vrstico za graf in primerjavo s Slovenijo.", cNa: "ni podatka", cDown: "vir se ne odziva", snap: "Svetovna banka se ni odzvala, zato so podatki iz kopije ISR z dne {0} (osvežuje se tedensko).", cLoading: "nalagam",
+      cIntro: "Ključni podatki iz uradnih virov. Kliknite vrstico za graf in primerjavo s Slovenijo.", slow: "{0} se odziva počasi, počakajte še malo …", cNa: "ni podatka", cDown: "vir se ne odziva", snap: "Svetovna banka se ni odzvala, zato so podatki iz kopije ISR z dne {0} (osvežuje se tedensko).", cLoading: "nalagam",
       cNoteSI: "Pri Sloveniji niso prikazani kazalniki menjave in naložb s Slovenijo.", indCount: "{0} kazalnikov", libHint: "Pripravljene poizvedbe ureja ISR. Svoje shranite z gumbom Shrani pod tabelo.",
       ex: "Na primer", tableWord: "Tabela",
     },
@@ -76,7 +76,7 @@
       rules: "Before publishing: mirror statistics differ (A's exports to B are not B's imports from A); FDI comes from central banks; never compare a part-year with a full year; off a small base, give the absolute figure too.",
       aboutText: ["ISR Stat is a front end to the official statistics APIs the Institute for Strategic Solutions (ISR) works with. Your browser talks to each source directly; nothing is stored on a server.", "Topics and indicators are ready-made queries. Sources lists every table of every source, for when you need something specific.", "Claude uses the same code (assets/isrstat.js) when it pulls data for ISR, so a figure in the app and a figure in a Claude draft come from the same query."],
       palHint: ["↑↓ select", "↵ open", "esc close"], inTime: "in Ljubljana",
-      cIntro: "Key figures from official sources. Click a row for the chart and a comparison with Slovenia.", cNa: "no data", cDown: "source not responding", snap: "The World Bank did not respond, so the data comes from ISR's copy of {0} (refreshed weekly).", cLoading: "loading",
+      cIntro: "Key figures from official sources. Click a row for the chart and a comparison with Slovenia.", slow: "{0} is slow to answer, one moment …", cNa: "no data", cDown: "source not responding", snap: "The World Bank did not respond, so the data comes from ISR's copy of {0} (refreshed weekly).", cLoading: "loading",
       cNoteSI: "Trade and investment with Slovenia are not shown for Slovenia itself.", indCount: "{0} indicators", libHint: "Ready-made queries are kept by ISR. Save your own with Save under a table.",
       ex: "Try", tableWord: "Table",
     },
@@ -641,6 +641,7 @@
     const my = ++st.token;
     status.className = "status";
     status.innerHTML = `<span class="spin"></span>${esc(t("loading"))}`;
+    setTimeout(() => { if (my === st.token && status.isConnected && status.querySelector(".spin")) status.innerHTML = `<span class="spin"></span>${esc(t("slow", srcAbbr(st.source)))}`; }, 7000);
     result.classList.add("busy");
     syncURL();
     try {
