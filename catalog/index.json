@@ -2,79 +2,81 @@
   "sources": {
     "surs.sl": {
       "n": 4878,
-      "built": "2026-11-16T11:05:32.575Z",
-      "seconds": 4
+      "built": "2026-11-23T12:24:45.035Z",
+      "seconds": 3
     },
     "surs.en": {
       "n": 4878,
-      "built": "2026-11-16T11:05:34.695Z",
-      "seconds": 2
+      "built": "2026-11-23T12:24:47.661Z",
+      "seconds": 3
     },
     "eurostat.en": {
-      "n": 8156,
-      "built": "2026-11-16T11:05:38.193Z",
-      "seconds": 3
+      "n": 8168,
+      "built": "2026-11-23T12:24:49.800Z",
+      "seconds": 2
     },
     "ecb.en": {
       "n": 215,
-      "built": "2026-11-16T11:05:40.324Z",
-      "seconds": 2
+      "built": "2026-11-23T12:26:31.547Z",
+      "seconds": 102
     },
     "oecd.en": {
-      "n": 1553,
-      "built": "2026-11-16T11:05:40.500Z",
+      "n": 1552,
+      "built": "2026-11-23T12:26:31.754Z",
       "seconds": 0
     },
     "imf.en": {
-      "n": 228,
-      "built": "2026-11-16T11:05:41.329Z",
+      "n": 233,
+      "built": "2026-11-23T12:26:32.303Z",
       "seconds": 1
     },
     "worldbank.en": {
       "n": 1534,
-      "built": "2026-11-15T01:15:37.990Z",
-      "seconds": 0,
-      "error": "Strežnik api.worldbank.org se ni odzval v 120 s.",
-      "tried": "2026-11-16T11:09:18.280Z"
+      "built": "2026-11-23T12:26:32.989Z",
+      "seconds": 1
     },
     "ilo.en": {
-      "n": 1962,
-      "built": "2026-11-16T11:09:19.807Z",
-      "seconds": 2
+      "n": 1964,
+      "built": "2026-11-23T12:26:34.223Z",
+      "seconds": 1
     },
     "bsi.sl": {
       "n": 172,
-      "built": "2026-11-16T11:10:17.851Z",
-      "seconds": 58
+      "built": "2026-11-23T12:27:29.214Z",
+      "seconds": 55
     },
     "bsi.en": {
       "n": 161,
-      "built": "2026-11-16T11:11:26.830Z",
-      "seconds": 69
+      "built": "2026-11-23T12:28:35.215Z",
+      "seconds": 66
     },
     "ask.en": {
       "n": 1611,
-      "built": "2026-11-16T11:14:12.801Z",
-      "seconds": 166
+      "built": "2026-11-23T12:31:07.649Z",
+      "seconds": 152
     },
     "makstat.en": {
       "error": "time budget exceeded",
-      "tried": "2026-11-16T11:23:12.802Z"
+      "tried": "2026-11-23T12:40:07.652Z"
     },
     "makstat.mk": {
       "error": "time budget exceeded",
-      "tried": "2026-11-16T11:32:12.803Z"
+      "tried": "2026-11-23T12:49:07.655Z"
     },
     "dzs.hr": {
       "n": 981,
       "built": "2026-11-16T11:37:33.725Z",
-      "seconds": 321
+      "seconds": 321,
+      "error": "empty list",
+      "tried": "2026-11-23T12:49:29.846Z"
     },
     "dzs.en": {
       "n": 916,
       "built": "2026-11-16T11:42:50.237Z",
-      "seconds": 317
+      "seconds": 317,
+      "error": "empty list",
+      "tried": "2026-11-23T12:49:52.031Z"
     }
   },
-  "built": "2026-11-16T11:42:50.237Z"
+  "built": "2026-11-23T12:49:52.031Z"
 }
